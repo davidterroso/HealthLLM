@@ -1,6 +1,10 @@
+import json
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from typing import List
+
+with open("config.json", "r") as f:
+        config = json.load(f)
 
 def embed_docs(docs: List):
         """
@@ -17,7 +21,7 @@ def embed_docs(docs: List):
         Returns:
             None
         """
-        embedding_function = HuggingFaceEmbeddings(model_name="pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb")
+        embedding_function = HuggingFaceEmbeddings(model_name=config["local_embedding_model"])
         vector_store = FAISS.from_documents(docs, embedding=embedding_function)
-        vector_store.save_local("../embedding_results/faiss_pmc")
+        vector_store.save_local("../local_embeddings/faiss_pmc")
     
