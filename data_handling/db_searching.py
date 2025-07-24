@@ -1,7 +1,7 @@
 import json
-from langchain import hub
 from langchain_huggingface.llms import HuggingFacePipeline
 from langchain_community.vectorstores import FAISS
+from langchain_core.prompts import PromptTemplate
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
@@ -53,7 +53,20 @@ def answer_questions(query: str):
         pipe = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
         llm = HuggingFacePipeline(pipeline=pipe)
 
-        prompt = hub.pull("rlm/rag-prompt")
+        prompt = PromptTemplate.from_template(
+                """
+                You are a biomedical research assistant. Use the context below to answer the user’s question in a clear, evidence-based manner.
+
+                Only use the provided context. Do not rely on prior knowledge. If the answer cannot be determined from the context, say so honestly.
+
+                Context:
+                {context}
+
+                Question:
+                {question}
+
+                Answer:
+                """)
 
         qa_chain = (
                 {       
