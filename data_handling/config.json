@@ -1,5 +1,5 @@
 {
     "model": "local",
     "local_embedding_model": "pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb",
-    "local_llm": ""
+    "local_llm": "google/flan-t5-small"
 }
