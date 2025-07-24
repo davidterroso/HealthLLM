@@ -64,7 +64,9 @@ def answer_questions(query: str):
                 | llm
                 | StrOutputParser()
         )
-        qa_chain.invoke(query)
+        result = qa_chain.invoke(query)
+        print("\n💬 Answer:", result)
+        return result
         
 query = "foot shape differences in diabetic patients"
 answer_questions(query=query)
