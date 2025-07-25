@@ -34,4 +34,4 @@ def embed_docs(docs: List):
                 embedding_function = OpenAIEmbeddings(model=["openai_embedding_model"])
                 vs_name = "../local_embeddings/openai_faiss_pmc"
         vector_store = FAISS.from_documents(docs, embedding=embedding_function)
-        vector_store.save_local("../local_embeddings/faiss_pmc")
+        vector_store.save_local(vs_name)

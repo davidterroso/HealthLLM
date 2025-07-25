@@ -1,6 +1,8 @@
 import json
 from langchain_huggingface.llms import HuggingFacePipeline
 from langchain_community.vectorstores import FAISS
+from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_community.llms import anthropic
 from langchain_core.prompts import PromptTemplate
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
@@ -25,9 +27,21 @@ def search_by_query(query: str) -> List[Document]:
                 results (List[Document]): list of 
                         documents retrieved
         """
-        embedding_function = HuggingFaceEmbeddings(model_name=config["local_embedding_model"])
+
+        if config["local_or_api_embedding"] == "local":
+                embedding_function = HuggingFaceEmbeddings(model_name=config["local_embedding_model"])
+                vs_name = "../local_embeddings/hf_faiss_pmc"
+        elif config["local_or_api_embedding"] == "api":
+                # In this case, the embeddings are performed using the OpenAI API
+                # The selected model is lightest embedding model from this API
+                # Other examples:
+                # text-embedding-3-large
+                # text-embedding-ada-002
+                embedding_function = OpenAIEmbeddings(model=["openai_embedding_model"])
+                vs_name = "../local_embeddings/openai_faiss_pmc"
+
         # Dangerous deserialization is on because the data is local
-        vector_store = FAISS.load_local("../local_embeddings/faiss_pmc", 
+        vector_store = FAISS.load_local(vs_name, 
                                         embeddings=embedding_function, 
                                         allow_dangerous_deserialization=True)
 
@@ -59,17 +73,21 @@ def answer_questions(query: str):
                 tokenizer = AutoTokenizer.from_pretrained(config["local_llm"])
                 model = AutoModelForSeq2SeqLM.from_pretrained(config["local_llm"])
                 model_name = config["local_embedding_model"]
-        elif config["local_or_api_llm"] == "api":
-                model_name = "OpenAI"
+                embedding_function = HuggingFaceEmbeddings(model_name=config["local_embedding_model"])
+                vs_name = "../local_embeddings/hf_faiss_pmc"
 
-        embedding_function = HuggingFaceEmbeddings(model_name=model_name)
+                pipe = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
+                llm = HuggingFacePipeline(pipeline=pipe)
+        elif config["local_or_api_llm"] == "api":
+                embedding_function = OpenAIEmbeddings(model=["openai_embedding_model"])
+                vs_name = "../local_embeddings/openai_faiss_pmc"
+                llm = anthropic(model=config["anthropic_llm"], temperature=0, max_tokens=512)
+
         # Dangerous deserialization is on because the data is local
-        vector_store = FAISS.load_local("../local_embeddings/faiss_pmc", 
+        vector_store = FAISS.load_local(vs_name, 
                                         embeddings=embedding_function, 
                                         allow_dangerous_deserialization=True)
 
-        pipe = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
-        llm = HuggingFacePipeline(pipeline=pipe)
 
         prompt = PromptTemplate.from_template(
                 """
