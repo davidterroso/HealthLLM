@@ -40,11 +40,29 @@ def format_docs(docs):
 
 def answer_questions(query: str):
         """
-        """
-        tokenizer = AutoTokenizer.from_pretrained(config["local_llm"])
-        model = AutoModelForSeq2SeqLM.from_pretrained(config["local_llm"])
+        Receives a query, searches the most similar documents 
+        in the VectorDB (FAISS) and summarizes its content. 
+        All this limited by the given prompt, which can 
+        obviously be tuned 
 
-        embedding_function = HuggingFaceEmbeddings(model_name=config["local_embedding_model"])
+        Args:
+                query (str): search query or question input by the 
+                        user to retrieve the most similar documents
+        
+        Returns:
+                answer (str): answer given by the selected LLM
+
+        """
+        # Gets the model depending on the configurations 
+        # between local or through an API
+        if config["local_or_api_llm"] == "local":
+                tokenizer = AutoTokenizer.from_pretrained(config["local_llm"])
+                model = AutoModelForSeq2SeqLM.from_pretrained(config["local_llm"])
+                model_name = config["local_embedding_model"]
+        elif config["local_or_api_llm"] == "api":
+                model_name = "OpenAI"
+
+        embedding_function = HuggingFaceEmbeddings(model_name=model_name)
         # Dangerous deserialization is on because the data is local
         vector_store = FAISS.load_local("../local_embeddings/faiss_pmc", 
                                         embeddings=embedding_function, 
@@ -55,9 +73,13 @@ def answer_questions(query: str):
 
         prompt = PromptTemplate.from_template(
                 """
-                You are a biomedical research assistant. Use the context below to answer the user’s question in a clear, evidence-based manner.
+                You are a biomedical research assistant. \
+                Use the context below to answer the user's\
+                question in a clear, evidence-based manner.\
 
-                Only use the provided context. Do not rely on prior knowledge. If the answer cannot be determined from the context, say so honestly.
+                Only use the provided context. Do not rely\
+                on prior knowledge. If the answer cannot be\
+                determined from the context, say so honestly.\
 
                 Context:
                 {context}
@@ -78,7 +100,7 @@ def answer_questions(query: str):
                 | StrOutputParser()
         )
         result = qa_chain.invoke(query)
-        print("\n💬 Answer:", result)
+        print("\n Answer:", result)
         return result
         
 query = "foot shape differences in diabetic patients"
