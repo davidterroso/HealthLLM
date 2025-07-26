@@ -1,8 +1,10 @@
 import json
+import os
+from dotenv import load_dotenv
 from langchain_huggingface.llms import HuggingFacePipeline
-from langchain_community.vectorstores import FAISS
+from langchain_community.llms import huggingface_hub
 from langchain_community.embeddings import OpenAIEmbeddings
-from langchain_community.llms import anthropic
+from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
@@ -10,6 +12,9 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_huggingface import HuggingFaceEmbeddings
 from transformers import pipeline, AutoModelForSeq2SeqLM, AutoTokenizer
 from typing import List
+
+load_dotenv()
+hf_api_key = os.getenv("HUGGINGFACEHUB_API_TOKEN")
 
 with open("config.json", "r") as f:
         config = json.load(f)
@@ -81,8 +86,11 @@ def answer_questions(query: str):
         elif config["local_or_api_llm"] == "api":
                 embedding_function = OpenAIEmbeddings(model=["openai_embedding_model"])
                 vs_name = "../local_embeddings/openai_faiss_pmc"
-                llm = anthropic(model=config["anthropic_llm"], temperature=0, max_tokens=512)
-
+                llm = huggingface_hub(
+                        repo_id=config["mistral_llm"],
+                        model_kwargs={"temperature": 0.7, "max_new_tokens": 512},
+                        huggingfacehub_api_token=hf_api_key
+                )
         # Dangerous deserialization is on because the data is local
         vector_store = FAISS.load_local(vs_name, 
                                         embeddings=embedding_function, 

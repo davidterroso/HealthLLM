@@ -1,8 +1,13 @@
 import json
+import os
+from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.embeddings import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from typing import List
+
+load_dotenv()
+openai_api_key = os.getenv("OPENAI_API_KEY")
 
 with open("config.json", "r") as f:
         config = json.load(f)
@@ -31,7 +36,8 @@ def embed_docs(docs: List):
                 # Other examples:
                 # text-embedding-3-large
                 # text-embedding-ada-002
-                embedding_function = OpenAIEmbeddings(model=["openai_embedding_model"])
+                embedding_function = OpenAIEmbeddings(model=["openai_embedding_model"], 
+                                                      openai_api_key=openai_api_key)
                 vs_name = "../local_embeddings/openai_faiss_pmc"
         vector_store = FAISS.from_documents(docs, embedding=embedding_function)
         vector_store.save_local(vs_name)
