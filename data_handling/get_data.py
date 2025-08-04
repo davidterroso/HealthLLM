@@ -3,11 +3,12 @@ This file is used to fetch the articles from the PMC website,
 through the website, or to handle the bulk data downloaded
 """
 
+from typing import Dict, List
 import requests
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from embedding_functions import embed_docs
 
-def fetch_pmc_articles_by_query(query: str, page_size: int=25):
+def fetch_pmc_articles_by_query(query: str, page_size: int=25) -> List[Dict[str]]:
     """
     Given a query, searches the open-access
     articles in the PMC website. This function
