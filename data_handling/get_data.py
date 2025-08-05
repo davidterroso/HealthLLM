@@ -4,11 +4,51 @@ through the website, or to handle the bulk data downloaded
 """
 
 from typing import Dict, List
+import os
+import tarfile
 import requests
+from lxml import etree
+from langchain.schema import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from embedding_functions import embed_docs
+from embedding_functions import embed_docs, embed_docs_to_faiss
 
-def fetch_pmc_articles_by_query(query: str, page_size: int=25) -> List[Dict[str]]:
+def extract_tar(extract_dir: str, tar_file_dir: str) -> None:
+    """
+    Extracts the information from the .tar.gz file
+    and stores it in a given directory
+
+    Args:
+        extract_dir (str): directory in which the 
+            extracted information will be stored
+        tar_file_dir (str): directory of the file 
+            desired to extract
+
+    Returns:
+        None 
+    """
+    os.makedirs(extract_dir, exist_ok=True)
+    with tarfile.open(tar_file_dir, "r:gz") as tar:
+        tar.extractall(extract_dir)
+
+def extract_text_from_xml(xml_dir: str) -> None:
+    """
+    Used in the extraction of relevant information 
+    from the selected XML file
+
+    Args:
+        xml_dir (str): directory for the XML file
+
+    Returns:
+        (str): the text in the xml file
+    """
+    try:
+        tree = etree.parse(xml_dir)
+        return ' '.join(tree.xpath('//body//text()')).strip()
+    except FileNotFoundError as e:
+        print(f"Error parsing {xml_dir}: {e}")
+        return ""
+
+def fetch_pmc_articles_by_query(query: str, page_size: int=25) -> List[Dict[str, str]]:
     """
     Given a query, searches the open-access
     articles in the PMC website. This function
@@ -55,9 +95,30 @@ def fetch_pmc_articles_by_query(query: str, page_size: int=25) -> List[Dict[str]
 
         results.append(entry)
 
-    text_chunker(results=results)
+    text_chunker_faiss(results=results)
 
-def text_chunker(results: dict):
+def text_chunker(full_text: str, metadata: None):
+    """
+    Splits a large string in multiple chunks, preparing them for the 
+    embedding, which is called subsequently
+
+    Args:
+        full_text (str): large string that contains all the text in 
+            a file, to be split in multiple chunks
+
+    Returns:
+        None
+    """
+    chunker = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    chunks = chunker.split_text(full_text)
+
+    docs = []
+    for chunk in chunks:
+        docs.append(Document(page_content=chunk, metadata=metadata or {}))
+
+    embed_docs(docs=docs)
+
+def text_chunker_faiss(results: dict):
     """
     Function used to chunk the text
     present in the results that it
@@ -75,7 +136,7 @@ def text_chunker(results: dict):
     chunker = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     docs = chunker.create_documents([result["abstract"] for result in results \
         if result.get("abstract")])
-    embed_docs(docs)
+    embed_docs_to_faiss(docs)
 
 # Being used to test function so far
 QUERY="diabetes"
