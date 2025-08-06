@@ -11,6 +11,16 @@ from lxml import etree
 from langchain.schema import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from embedding_functions import embed_docs, embed_docs_to_faiss
+from upload_to_vectordb import initiate_qdrant_session
+
+def data_pipeline():
+    """
+    This initiates the data extraction pipeline 
+    and initiates the Qdrant Session so that it 
+    can be called prior to the data uploading
+    """
+    initiate_qdrant_session()
+    extract_tar(extract_dir="extracted", tar_file_dir="data.tar.gz")
 
 def extract_tar(extract_dir: str, tar_file_dir: str) -> None:
     """

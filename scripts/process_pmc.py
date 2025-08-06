@@ -1,9 +1,7 @@
-import tarfile
-import os
-import json
-from lxml import etree
+"""
+Script called to process the data using GitHub Actions
+"""
 
+from data_handling.get_data import data_pipeline
 
-TAR_FILE = "data.tar.gz"
-EXTRACT_DIR = "extracted"
-EMBEDDINGS_DIR = "embeddings"
+data_pipeline()
