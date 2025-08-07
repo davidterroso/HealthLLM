@@ -3,10 +3,12 @@ This file is used to fetch the articles from the PMC website,
 through the website, or to handle the bulk data downloaded
 """
 
+from pathlib import Path
 from typing import Dict, List
 import os
 import tarfile
 import requests
+from tqdm import tqdm
 from lxml import etree
 from langchain.schema import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -21,6 +23,7 @@ def data_pipeline():
     """
     initiate_qdrant_session()
     extract_tar(extract_dir="extracted", tar_file_dir="data.tar.gz")
+    iterate_xml_files(xml_dir="extracted")
 
 def extract_tar(extract_dir: str, tar_file_dir: str) -> None:
     """
@@ -40,23 +43,65 @@ def extract_tar(extract_dir: str, tar_file_dir: str) -> None:
     with tarfile.open(tar_file_dir, "r:gz") as tar:
         tar.extractall(extract_dir)
 
-def extract_text_from_xml(xml_dir: str) -> None:
+def iterate_xml_files(xml_dir: str) -> None:
+    """
+    Iterates through the XML files extracted 
+    from the .tar.gz file, getting their metadata, 
+    their content, embedding the content, and 
+    uploading it into the VectorDB 
+
+    Args:
+        xml_dir (str): directory where the 
+            extracted XML files are located
+
+    Returns:
+        None
+    """
+    files = [Path(xml_dir).rglob("*.xml")]
+
+    for xml_file in tqdm(files):
+        text, metadata = extract_from_xml(str(xml_file))
+
+        chunks = text_chunker(text, metadata)
+        embed_docs(chunks)
+
+def extract_from_xml(xml_dir: str) -> tuple[str|None, Dict[str, str]|Dict[None]]:
     """
     Used in the extraction of relevant information 
     from the selected XML file
 
     Args:
-        xml_dir (str): directory for the XML file
+        text (str): directory for the XML file
 
     Returns:
-        (str): the text in the xml file
+        text (str): the text in the XML file
+        metadata (Dict[str, str]): the metadata
+            from the article
     """
     try:
         tree = etree.parse(xml_dir)
-        return ' '.join(tree.xpath('//body//text()')).strip()
+        text = ' '.join(tree.xpath('//body//text()')).strip()
+
+        title = tree.findtext('.//article-title')
+        journal = tree.findtext('.//journal-title')
+        year = tree.findtext('.//pub-date/year')
+        doi = tree.findtext('.//article-id[@pub-id-type="doi"]')
+        pmid = tree.findtext('.//article-id[@pub-id-type="pmid"]')
+
+        metadata = {
+            "file": os.path.basename(xml_dir),
+            "title": title,
+            "journal": journal,
+            "year": year,
+            "doi": doi,
+            "pmid": pmid
+        }
+
+        return text, metadata
+
     except FileNotFoundError as e:
         print(f"Error parsing {xml_dir}: {e}")
-        return ""
+        return None, {}
 
 def fetch_pmc_articles_by_query(query: str, page_size: int=25) -> List[Dict[str, str]]:
     """
@@ -110,14 +155,16 @@ def fetch_pmc_articles_by_query(query: str, page_size: int=25) -> List[Dict[str,
 def text_chunker(full_text: str, metadata: None):
     """
     Splits a large string in multiple chunks, preparing them for the 
-    embedding, which is called subsequently
+    embedding
 
     Args:
         full_text (str): large string that contains all the text in 
             a file, to be split in multiple chunks
 
     Returns:
-        None
+        docs (List[Documents]): list of LangChain Documents from the
+            given XML file, which contain both the text and their 
+            metadata
     """
     chunker = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
     chunks = chunker.split_text(full_text)
@@ -126,7 +173,7 @@ def text_chunker(full_text: str, metadata: None):
     for chunk in chunks:
         docs.append(Document(page_content=chunk, metadata=metadata or {}))
 
-    embed_docs(docs=docs)
+    return docs
 
 def text_chunker_faiss(results: dict):
     """
@@ -147,7 +194,3 @@ def text_chunker_faiss(results: dict):
     docs = chunker.create_documents([result["abstract"] for result in results \
         if result.get("abstract")])
     embed_docs_to_faiss(docs)
-
-# Being used to test function so far
-QUERY="diabetes"
-fetch_pmc_articles_by_query(query=QUERY, page_size=25)

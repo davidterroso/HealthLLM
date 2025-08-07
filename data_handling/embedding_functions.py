@@ -36,7 +36,7 @@ def embed_docs(docs: List[Document]) -> None:
         vector = embed_chunk(doc.page_content)
         embeddings.append(vector)
 
-    base_id = docs[0].metadata
+    base_id = docs[0].metadata["pmid"]
 
     upload_docs_to_qdrant(docs=docs, embeddings=embeddings, base_id=base_id)
 
