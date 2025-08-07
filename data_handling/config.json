@@ -3,6 +3,7 @@
     "local_or_api_embedding": "api",
     "local_or_api_llm": "api",
     "hf_embedding_model": "pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb",
+    "embedding_dim": 768,
     "local_llm": "google/flan-t5-small",
     "mistral_llm": "mistralai/Mistral-7B-Instruct-v0.1"
 }

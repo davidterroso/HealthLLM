@@ -4,21 +4,19 @@ the preferences selected in the config.json file
 """
 
 import json
-import os
 from typing import List
-from dotenv import load_dotenv
 from langchain.schema import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from upload_to_vectordb import upload_docs_to_qdrant
-
-load_dotenv()
-openai_api_key = os.getenv("OPENAI_API_KEY")
+from qdrant_client import QdrantClient
+from data_handling.upload_to_vectordb import upload_docs_to_qdrant
 
 with open("config.json", "r", encoding="utf-8") as f:
     config = json.load(f)
 
-def embed_docs(docs: List[Document]) -> None:
+def embed_docs(docs: List[Document],
+               client: QdrantClient,
+               collection_name: str) -> None:
     """
     Function used to embed a List of chunks, 
     handling them individually, and exporting 
@@ -26,7 +24,11 @@ def embed_docs(docs: List[Document]) -> None:
 
     Args:
         docs (List[Document]): list of chunks, 
-        and their metadata, to embed
+            and their metadata, to embed
+        client (QdrantClient): iniated 
+            QdrantClient object
+        collection_name (str): name of the
+            Qdrant collection
 
     Returns:
         None
@@ -38,7 +40,11 @@ def embed_docs(docs: List[Document]) -> None:
 
     base_id = docs[0].metadata["pmid"]
 
-    upload_docs_to_qdrant(docs=docs, embeddings=embeddings, base_id=base_id)
+    upload_docs_to_qdrant(docs=docs,
+                          embeddings=embeddings,
+                          base_id=base_id,
+                          client=client,
+                          collection_name=collection_name)
 
 def embed_chunk(chunk: str) -> List[float]:
     """

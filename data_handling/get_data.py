@@ -12,18 +12,28 @@ from tqdm import tqdm
 from lxml import etree
 from langchain.schema import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from embedding_functions import embed_docs, embed_docs_to_faiss
-from upload_to_vectordb import initiate_qdrant_session
+from qdrant_client import QdrantClient
+from data_handling.embedding_functions import embed_docs, embed_docs_to_faiss
+from data_handling.upload_to_vectordb import initiate_qdrant_session
+from utils.logging_config import setup_logging
 
-def data_pipeline():
+def data_pipeline(collection_name: str) -> None:
     """
     This initiates the data extraction pipeline 
     and initiates the Qdrant Session so that it 
     can be called prior to the data uploading
+
+    Args:
+        collection_name (str): name of the 
+            Qdrant collection
+
+    Returns:
+        None
     """
-    initiate_qdrant_session()
+    setup_logging()
+    client = initiate_qdrant_session(collection_name=collection_name)
     extract_tar(extract_dir="extracted", tar_file_dir="data.tar.gz")
-    iterate_xml_files(xml_dir="extracted")
+    iterate_xml_files(xml_dir="extracted", client=client, collection_name=collection_name)
 
 def extract_tar(extract_dir: str, tar_file_dir: str) -> None:
     """
@@ -43,7 +53,9 @@ def extract_tar(extract_dir: str, tar_file_dir: str) -> None:
     with tarfile.open(tar_file_dir, "r:gz") as tar:
         tar.extractall(extract_dir)
 
-def iterate_xml_files(xml_dir: str) -> None:
+def iterate_xml_files(xml_dir: str,
+                      client: QdrantClient,
+                      collection_name: str) -> None:
     """
     Iterates through the XML files extracted 
     from the .tar.gz file, getting their metadata, 
@@ -53,17 +65,21 @@ def iterate_xml_files(xml_dir: str) -> None:
     Args:
         xml_dir (str): directory where the 
             extracted XML files are located
+        client (QdrantClient Object): initiated 
+            QdrantClient object
+        collection_name (str): name of the 
+            Qdrant collection
 
     Returns:
         None
     """
-    files = [Path(xml_dir).rglob("*.xml")]
+    files = list(Path(xml_dir).rglob("*.xml"))
 
-    for xml_file in tqdm(files):
+    for xml_file in tqdm(files, desc="Processing XML Files"):
         text, metadata = extract_from_xml(str(xml_file))
 
         chunks = text_chunker(text, metadata)
-        embed_docs(chunks)
+        embed_docs(chunks, client, collection_name)
 
 def extract_from_xml(xml_dir: str) -> tuple[str|None, Dict[str, str]|Dict[None]]:
     """
@@ -99,8 +115,8 @@ def extract_from_xml(xml_dir: str) -> tuple[str|None, Dict[str, str]|Dict[None]]
 
         return text, metadata
 
-    except FileNotFoundError as e:
-        print(f"Error parsing {xml_dir}: {e}")
+    except (etree.XMLSyntaxError, OSError, IOError, PermissionError) as e:
+        print(f"Error parsing {xml_dir}: {type(e).__name__} - {e}")
         return None, {}
 
 def fetch_pmc_articles_by_query(query: str, page_size: int=25) -> List[Dict[str, str]]:

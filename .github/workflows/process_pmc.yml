@@ -17,7 +17,7 @@ jobs:
         python-version: '3.13.5'
     - run: |
         python -m pip install --upgrade pip
-        pip install lxml requests
+        pip install -r requirements.txt
 
     - name: Download PMC .tar.gz
       run: |
@@ -27,13 +27,14 @@ jobs:
       run: |
         python scripts/process_pmc.py
       env:
-        HF_TOKEN: ${{secrets.HF_TOKEN}}
+        QDRANT_API_KEY: ${{secrets.QDRANT_API_KEY}}
+        QDRANT_HOST: ${{secrets.QDRANT_HOST}}
 
     - name: Commit results
       run: |
-        git config user.name github-actions
-        git config user.email github-actions@github.com
+        git config user.name davidterroso
+        git config user.email davidterroso@live.com.pt
         git pull
-        git add local_embeddings/
+        git add embeddings/
         git commit -m "Processed PMC000xxxxxx"
         git push
