@@ -1,5 +1,9 @@
-"""Used in the comparison between the embedded queries and the documents 
-in the VectorDB"""
+"""
+Used in the comparison between the embedded queries and the documents 
+in the VectorDB
+
+THIS FILE IS OUTDATED, AND CORRESPONDS TO AN OLDER VERSION OF THE CODE
+"""
 
 import json
 import os
