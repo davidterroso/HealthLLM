@@ -3,16 +3,19 @@ This file is used in the embedding of strings using
 the preferences selected in the config.json file
 """
 
+import os
 import json
 import logging
 from typing import List
 from langchain.schema import Document
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
 from qdrant_client import QdrantClient
 from data_handling.upload_to_vectordb import upload_docs_to_qdrant
 
-with open("config.json", "r", encoding="utf-8") as f:
+config_path = os.path.join(os.path.dirname(__file__),
+                           '..', 'data_handling', 'config.json')
+
+with open(os.path.abspath(config_path), "r", encoding="utf-8") as f:
     config = json.load(f)
 
 embedding_function = HuggingFaceEmbeddings(
@@ -83,24 +86,3 @@ def embed_chunks(chunks: str) -> List[List[float]]:
             )
 
     return vectors
-
-def embed_docs_to_faiss(docs: List) -> None:
-    """
-    Embeds the documents that it is fed using the BioBERT 
-    model. This model is being ran locally and is 
-    optimized for biomedical articles
-
-    Args:
-        docs (List[str]): list of documents that are 
-            going to be embedded. The information is 
-            saved in a FAISS datastore and saved 
-            locally after embedding
-    
-    Returns:
-        None
-    """
-    vs_name = "../local_embeddings/hf_faiss_pmc"
-
-    vector_store = FAISS.from_documents(documents=docs,
-                                        embedding=embedding_function)
-    vector_store.save_local(vs_name)

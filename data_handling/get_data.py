@@ -5,18 +5,25 @@ through the website, or to handle the bulk data downloaded
 
 from typing import BinaryIO, Dict, List, Optional, Tuple, Union
 from io import BytesIO
+import os
+import json
 import logging
 import tarfile
-import requests
 from tqdm import tqdm
 from lxml import etree
 from langchain.schema import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from qdrant_client import QdrantClient
-from data_handling.embedding_functions import embed_docs, embed_docs_to_faiss
+from data_handling.embedding_functions import embed_docs
 from data_handling.upload_to_vectordb import initiate_qdrant_session
 from utils.logging_config import setup_logging
 from utils.get_embeddings_dims import get_embeddings_dims
+
+config_path = os.path.join(os.path.dirname(__file__),
+                           '..', 'data_handling', 'config.json')
+
+with open(os.path.abspath(config_path), "r", encoding="utf-8") as f:
+    config = json.load(f)
 
 def data_pipeline(collection_name: str, tar_file_dir: str) -> None:
     """
@@ -172,52 +179,7 @@ def extract_from_xml(xml_source: Union[str, BinaryIO],
         logging.error("XML parsing error in %s: %s - %s", xml_source, type(e).__name__, e)
         return None, {}
 
-def fetch_pmc_articles_by_query(query: str,
-                                page_size: int=25) -> List[Dict[str, str]]:
-    """
-    Given a query, searches the open-access articles in the PMC website. 
-    This function is more oriented for testing, since it only allows the 
-    retrival of data using a query
-
-    Args:
-        query (str): search query in the PMC website
-        page_size (int): number of articles per page
-
-    Returns:
-        results (List[dict{str}]): results of the search query. Returns a 
-            dictionary that stores the title, abstract, link, and PMID
-    """
-
-    # URL where we can access the articles published in PMC
-    url = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
-    # Parameters regarding which text will be retrieved
-    params = {
-            "query": f"{query} AND OPEN_ACCESS:Y",
-            "format": "json",
-            "pageSize": page_size,
-            "resultType": "core"
-    }
-
-    response = requests.get(url=url, params=params, timeout=5)
-    data = response.json()
-    articles = data.get("resultList", {}).get("result", [])
-
-    results = []
-
-    # Iterate through the articles in the page
-    for article in articles:
-        entry = {
-            "title": article.get("title"),
-            "abstract": article.get("abstractText"),
-            "source": article.get("fullTextUrlList", {}).get("fullTextUrl", []),
-            "pmid": article.get("id")
-        }
-
-        results.append(entry)
-
-    text_chunker_faiss(results=results)
-
-def text_chunker(full_text: str, metadata: None):
+def text_chunker(full_text: str, metadata: None) -> List[Document]:
     """
     Splits a large string in multiple chunks, preparing them for the 
     embedding
@@ -231,8 +193,8 @@ def text_chunker(full_text: str, metadata: None):
             given XML file, which contain both the text and their 
             metadata
     """
-    chunker = RecursiveCharacterTextSplitter(chunk_size=1000,
-                                             chunk_overlap=100)
+    chunker = RecursiveCharacterTextSplitter(chunk_size=config["chunk_size"],
+                                             chunk_overlap=config["chunk_overlap"])
     chunks = chunker.split_text(full_text)
 
     docs = []
@@ -240,20 +202,3 @@ def text_chunker(full_text: str, metadata: None):
         docs.append(Document(page_content=chunk, metadata=metadata or {}))
 
     return docs
-
-def text_chunker_faiss(results: dict) -> None:
-    """
-    Function used to chunk the text present in the results that it is fed
-
-    Args:
-        results (List[dict{str}]): results of the search query. Represented 
-        in a dictionary that stores the title, abstract, link, and PMID
-
-    Returns:
-        None
-    """
-
-    chunker = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-    docs = chunker.create_documents([result["abstract"] for result in results\
-        if result.get("abstract")])
-    embed_docs_to_faiss(docs)

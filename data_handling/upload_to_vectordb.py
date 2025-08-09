@@ -7,12 +7,16 @@ import os
 import json
 import logging
 from typing import List
+from tqdm import tqdm
 from langchain.schema import Document
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
 from qdrant_client.http.exceptions import UnexpectedResponse
 
-with open("config.json", "r", encoding="utf-8") as f:
+config_path = os.path.join(os.path.dirname(__file__),
+                           '..', 'data_handling', 'config.json')
+
+with open(os.path.abspath(config_path), "r", encoding="utf-8") as f:
     config = json.load(f)
 
 def initiate_qdrant_session(collection_name: str) -> QdrantClient:
@@ -119,11 +123,15 @@ def upload_docs_to_qdrant(docs: List[Document],
                           "for doc #%d: %s", i, e, exc_info=True)
 
     if points:
-        try:
-            client.upsert(collection_name=collection_name, points=points)
-        except UnexpectedResponse as e:
-            raise RuntimeError(f"Qdrant upsert failed: {e}") from e
-        except Exception as e:
-            raise ConnectionError(f"Failed to upload points to Qdrant: {e}") from e
+        total_batches = (len(points) + config['batch_size'] - 1) // config['batch_size']
+        for i in tqdm(range(0, len(points), config['batch_size']),
+                      total=total_batches, unit="batch", desc="Uploading batches"):
+            batch = points[i:i + config['batch_size']]
+            try:
+                client.upsert(collection_name=collection_name, points=batch)
+            except UnexpectedResponse as e:
+                raise RuntimeError(f"Qdrant upsert failed: {e}") from e
+            except Exception as e:
+                raise ConnectionError(f"Failed to upload points to Qdrant: {e}") from e
     else:
         logging.info("No valid points to upload.")
