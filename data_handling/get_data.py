@@ -5,7 +5,6 @@ through the website, or to handle the bulk data downloaded
 
 from typing import BinaryIO, Dict, List, Optional, Tuple, Union
 from io import BytesIO
-import os
 import logging
 import tarfile
 import requests
@@ -18,8 +17,7 @@ from data_handling.embedding_functions import embed_docs, embed_docs_to_faiss
 from data_handling.upload_to_vectordb import initiate_qdrant_session
 from utils.logging_config import setup_logging
 
-def data_pipeline(collection_name: str, extract_dir: str,
-                  tar_file_dir: str) -> None:
+def data_pipeline(collection_name: str, tar_file_dir: str) -> None:
     """
     This initiates the data extraction pipeline and initiates the 
     Qdrant Session so that it can be called prior to the data 
@@ -27,8 +25,6 @@ def data_pipeline(collection_name: str, extract_dir: str,
 
     Args:
         collection_name (str): name of the Qdrant collection
-        extract_dir (str): directory where the XML files are 
-            going to be extracted to
         tar_file_dir (str): directory where the .tar.gz file 
             is located
 
@@ -38,31 +34,10 @@ def data_pipeline(collection_name: str, extract_dir: str,
     setup_logging()
     client = initiate_qdrant_session(collection_name=collection_name)
     iterate_tar(client=client,
-                extract_dir=extract_dir,
                 collection_name=collection_name,
                 tar_file_dir=tar_file_dir)
 
-def ensure_directory_creation(dir_name: str) -> None:
-    """
-    Used to safely create folders where data is going to be located
-
-    Args:
-        dir_name (str): name of the directory desired to create
-
-    Returns:
-        None
-    """
-    try:
-        os.makedirs(dir_name, exist_ok=True)
-    except PermissionError:
-        logging.error("Permission denied creating repository: %s", dir_name)
-        raise
-    except OSError as e:
-        logging.error("OS error creating directory %s: %s", dir_name, e)
-        raise
-
-def safe_extract_member(tar: tarfile.TarFile, member: tarfile.TarInfo,
-                        base_dir: str) -> BinaryIO:
+def safe_extract_member(tar: tarfile.TarFile, member: tarfile.TarInfo) -> BinaryIO:
     """
     Handles the extraction of the tar file safely, handling its 
     errors gracefully
@@ -84,11 +59,6 @@ def safe_extract_member(tar: tarfile.TarFile, member: tarfile.TarInfo,
     if member.issym() or member.islnk():
         logging.warning("Skipping symbolic link in tar: %s", member.name)
         return None
-
-    member_path = os.path.abspath(os.path.join(base_dir, member.name))
-    if not member_path.startswith(os.path.abspath(base_dir) + os.sep) \
-        and member.isfile():
-        raise ValueError(f"Unsafe file path detected: {member.name}")
 
     return tar.extractfile(member)
 
@@ -126,7 +96,6 @@ def process_xml_member(fileobj: BinaryIO,
 
 def iterate_tar(client: QdrantClient,
                 collection_name: str,
-                extract_dir: str,
                 tar_file_dir: str) -> None:
     """
     Iterates through the XML files in the downloaded .tar.gz file
@@ -140,15 +109,12 @@ def iterate_tar(client: QdrantClient,
     Returns:
         None
     """
-    ensure_directory_creation(dir_name=extract_dir)
-
     try:
         with tarfile.open(tar_file_dir, "r:gz") as tar:
             for member in tqdm(tar, desc="Processing files", unit="file"):
                 try:
                     fileobj = safe_extract_member(tar=tar,
-                                                  member=member,
-                                                  base_dir=extract_dir)
+                                                  member=member)
                 except ValueError as e:
                     logging.error(e)
                     continue
