@@ -16,6 +16,7 @@ from qdrant_client import QdrantClient
 from data_handling.embedding_functions import embed_docs, embed_docs_to_faiss
 from data_handling.upload_to_vectordb import initiate_qdrant_session
 from utils.logging_config import setup_logging
+from utils.get_embeddings_dims import get_embeddings_dims
 
 def data_pipeline(collection_name: str, tar_file_dir: str) -> None:
     """
@@ -32,7 +33,11 @@ def data_pipeline(collection_name: str, tar_file_dir: str) -> None:
         None
     """
     setup_logging()
+    logging.info("Getting embeddings dimensions.")
+    get_embeddings_dims()
+    logging.info("Initiating Qdrant session.")
     client = initiate_qdrant_session(collection_name=collection_name)
+    logging.info("Initiating extraction.")
     iterate_tar(client=client,
                 collection_name=collection_name,
                 tar_file_dir=tar_file_dir)
