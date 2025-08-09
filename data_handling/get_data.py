@@ -49,7 +49,8 @@ def data_pipeline(collection_name: str, tar_file_dir: str) -> None:
                 collection_name=collection_name,
                 tar_file_dir=tar_file_dir)
 
-def safe_extract_member(tar: tarfile.TarFile, member: tarfile.TarInfo) -> BinaryIO:
+def safe_extract_member(tar: tarfile.TarFile, member: tarfile.TarInfo,
+                        processed_files: set) -> BinaryIO:
     """
     Handles the extraction of the tar file safely, handling its 
     errors gracefully
@@ -57,7 +58,9 @@ def safe_extract_member(tar: tarfile.TarFile, member: tarfile.TarInfo) -> Binary
     Args:
         tar (TarFile Object): compressed tar file that is being handled
         member (TarInfo Object): one of the files that is in the 
-            compressed tar folder 
+            compressed tar folder
+        processed_files (set): set of files that have already been 
+            processed
 
     Returns:
         (Binary IO): XML file in binary
@@ -70,6 +73,9 @@ def safe_extract_member(tar: tarfile.TarFile, member: tarfile.TarInfo) -> Binary
 
     if member.issym() or member.islnk():
         logging.warning("Skipping symbolic link in tar: %s", member.name)
+        return None
+
+    if member.name in processed_files:
         return None
 
     return tar.extractfile(member)
@@ -106,6 +112,36 @@ def process_xml_member(fileobj: BinaryIO,
     finally:
         fileobj.close()
 
+def load_checkpoint() -> set:
+    """
+    Returns a set of the XML files that have already been iterated
+
+    Args:
+        None
+
+    Returns:
+        processed_files (set): set of the files that have already 
+            been processed
+    """
+    if os.path.exists(config["checkpoints_path"]):
+        with open(config["checkpoints_path"], "r", encoding="utf-8") as checkpoint_file:
+            return set(json.load(checkpoint_file))
+    return set()
+
+def save_checkpoint(processed_files: set) -> None:
+    """
+    Saves the set of XML files that have already been iterated
+
+    Args:
+        processed_files (set): set of the files that have already 
+            been processed
+
+    Returns:
+        None
+    """
+    with open(config["checkpoints_path"], "w", encoding="utf-8") as checkpoint_file:
+        json.dump(list(processed_files), checkpoint_file)
+
 def iterate_tar(client: QdrantClient,
                 collection_name: str,
                 tar_file_dir: str) -> None:
@@ -121,21 +157,28 @@ def iterate_tar(client: QdrantClient,
     Returns:
         None
     """
+
+    processed_files = load_checkpoint()
+    os.makedirs(os.path.dirname(config["checkpoints_path"]), exist_ok=True)
+
     try:
         with tarfile.open(tar_file_dir, "r:gz") as tar:
             for member in tqdm(tar, desc="Processing files", unit="file"):
                 try:
                     fileobj = safe_extract_member(tar=tar,
-                                                  member=member)
+                                                  member=member,
+                                                  processed_files=processed_files)
                 except ValueError as e:
                     logging.error(e)
                     continue
 
                 if fileobj:
-                    process_xml_member(fileobj,
-                                       member.name,
-                                       client,
-                                       collection_name)
+                    process_xml_member(fileobj=fileobj,
+                                       member_name=member.name,
+                                       client=client,
+                                       collection_name=collection_name)
+                    processed_files.add(member.name)
+                    save_checkpoint(processed_files=processed_files)
 
     except (FileNotFoundError, PermissionError, EOFError,
             tarfile.ReadError, tarfile.TarError, OSError) as e:
