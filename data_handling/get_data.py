@@ -222,7 +222,7 @@ def extract_from_xml(xml_source: Union[str, BinaryIO],
         logging.error("XML parsing error in %s: %s - %s", xml_source, type(e).__name__, e)
         return None, {}
 
-def text_chunker(full_text: str, metadata: None) -> List[Document]:
+def text_chunker(full_text: str, metadata: Optional[dict] = None) -> List[Document]:
     """
     Splits a large string in multiple chunks, preparing them for the 
     embedding
@@ -236,12 +236,18 @@ def text_chunker(full_text: str, metadata: None) -> List[Document]:
             given XML file, which contain both the text and their 
             metadata
     """
+    if not isinstance(full_text, str):
+        raise TypeError("full_text must be a string")
+    if metadata is not None and not isinstance(metadata, dict):
+        raise TypeError("metadata must be a dictionary or None")
+
+    if not full_text.strip():
+        return []
+
     chunker = RecursiveCharacterTextSplitter(chunk_size=config["chunk_size"],
                                              chunk_overlap=config["chunk_overlap"])
     chunks = chunker.split_text(full_text)
 
-    docs = []
-    for chunk in chunks:
-        docs.append(Document(page_content=chunk, metadata=metadata or {}))
+    docs = [Document(page_content=chunk, metadata=metadata or {}) for chunk in chunks]
 
     return docs

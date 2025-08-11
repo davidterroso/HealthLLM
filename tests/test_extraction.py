@@ -9,17 +9,26 @@ import sys
 import logging
 import io
 import tarfile
+from typing import BinaryIO
+from tarfile import TarFile, TarInfo
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-import pytest
+from qdrant_client import QdrantClient
+from langchain.schema import Document
 from lxml import etree
-from pytest import LogCaptureFixture
+from pytest import fixture, LogCaptureFixture, MonkeyPatch, raises
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from data_handling.get_data import safe_extract_member,\
     extract_from_xml, process_xml_member, load_checkpoint,\
-          save_checkpoint
+          save_checkpoint, text_chunker, iterate_tar
+
+config_path = os.path.join(os.path.dirname(__file__),
+                           '..', 'data_handling', 'config.json')
+
+with open(os.path.abspath(config_path), "r", encoding="utf-8") as f:
+    config = json.load(f)
 
 # For testing the safe_extract_member function
 
@@ -376,8 +385,8 @@ def test_process_xml_member_value_error(caplog: LogCaptureFixture):
     assert "Data error" in caplog.text
     assert test_fileobj.closed
 
-@pytest.fixture
-def config_patch_fixture(monkeypatch: pytest.MonkeyPatch, tmp_path: str) -> dict:
+@fixture
+def config_patch_fixture(monkeypatch: MonkeyPatch, tmp_path: str) -> dict:
     """
     Fixture for a fake configurations file containing a checkpoint path
 
@@ -407,8 +416,8 @@ def test_load_checkpoint_file_exists(config_patch_fixture: dict) -> None:
         None
     """
     data = ["file1.xml", "file2.xml"]
-    with open(config_patch_fixture["checkpoints_path"], "w", encoding="utf-8") as f:
-        json.dump(data, f)
+    with open(config_patch_fixture["checkpoints_path"], "w", encoding="utf-8") as file_obj:
+        json.dump(data, file_obj)
 
     result = load_checkpoint()
     assert isinstance(result, set)
@@ -448,8 +457,8 @@ def test_save_checkpoint_and_load_back(config_patch_fixture: dict) -> None:
     files_set = {"a.xml", "b.xml"}
     save_checkpoint(files_set)
 
-    with open(config_patch_fixture["checkpoints_path"], "r", encoding="utf-8") as f:
-        data = json.load(f)
+    with open(config_patch_fixture["checkpoints_path"], "r", encoding="utf-8") as file_obj:
+        data = json.load(file_obj)
 
     assert set(data) == files_set
     assert load_checkpoint() == files_set
@@ -465,14 +474,277 @@ def test_save_checkpoint_overwrites_file(config_patch_fixture: dict) -> None:
     Returns:
         None
     """
-    with open(config_patch_fixture["checkpoints_path"], "w", encoding="utf-8") as f:
-        json.dump(["old.xml"], f)
+    with open(config_patch_fixture["checkpoints_path"], "w", encoding="utf-8") as file_obj:
+        json.dump(["old.xml"], file_obj)
 
     new_set = {"new1.xml", "new2.xml"}
     save_checkpoint(new_set)
 
-    with open(config_patch_fixture["checkpoints_path"], "r", encoding="utf-8") as f:
-        data = json.load(f)
+    with open(config_patch_fixture["checkpoints_path"], "r", encoding="utf-8") as file_obj:
+        data = json.load(file_obj)
 
     assert set(data) == new_set
     assert set(data) == new_set
+
+# Testing function text_chunker
+
+def test_text_chunker_basic(monkeypatch: MonkeyPatch) -> None:
+    """
+    Tests the chunker basic functions
+
+    Args:
+        monkeypatch (MonkeyPatch): patch used to replace the 
+            configurations file
+
+    Returns:
+        None
+    """
+    monkeypatch.setitem(config, "chunk_size", 10)
+    monkeypatch.setitem(config, "chunk_overlap", 2)
+
+    text = "This is a simple test string to be chunked into parts."
+    metadata = {"source": "unit_test"}
+
+    docs = text_chunker(text, metadata)
+
+    assert isinstance(docs, list)
+    assert all(isinstance(d, Document) for d in docs)
+    assert all(d.metadata == metadata for d in docs)
+    assert any("test" in d.page_content for d in docs)
+
+def test_text_chunker_empty_string(monkeypatch: MonkeyPatch) -> None:
+    """
+    Tests the chunker when given an empty string
+
+    Args:
+        monkeypatch (MonkeyPatch): patch used to replace the 
+            configurations file
+
+    Returns:
+        None
+    """
+    monkeypatch.setitem(config, "chunk_size", 10)
+    monkeypatch.setitem(config, "chunk_overlap", 2)
+
+    docs = text_chunker("", None)
+    assert docs == []
+
+def test_text_chunker_none_metadata(monkeypatch: MonkeyPatch) -> None:
+    """
+    Tests the chunker when given an empty metadata
+    Args:
+        monkeypatch (MonkeyPatch): patch used to replace the 
+            configurations file
+
+    Returns:
+        None
+    """
+    monkeypatch.setitem(config, "chunk_size", 10)
+    monkeypatch.setitem(config, "chunk_overlap", 2)
+
+    text = "Short text"
+    docs = text_chunker(text, None)
+    assert all(isinstance(d.metadata, dict) for d in docs)
+
+def test_text_chunker_invalid_full_text_type():
+    """
+    Tests the chunker when given an invalid text type
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
+    with raises(TypeError):
+        text_chunker(1234, None)
+
+def test_text_chunker_invalid_metadata_type():
+    """
+    Tests the chunker when given an invalid metadata type
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
+    with raises(TypeError):
+        text_chunker("text", metadata="not a dict")
+
+# Tests the iterate_tar function
+
+@fixture
+def fake_tar_fixture(tmp_path) -> str:
+    """
+    Creates a fake tar file fixture
+
+    Args:
+        tmp_path (str): path to the folder where the 
+            temporary tar file is going to be created
+
+    Returns:
+        tar_path (str): path to the created tar file
+    """
+    tar_path = tmp_path / "test_archive.tar.gz"
+    xml_content = b"<root><title>Test</title></root>"
+
+    xml_file = tmp_path / "test.xml"
+    xml_file.write_bytes(xml_content)
+
+    txt_file = tmp_path / "ignore.txt"
+    txt_file.write_text("Ignore me")
+
+    with tarfile.open(tar_path, "w:gz") as tar:
+        tar.add(xml_file, arcname="test.xml")
+        tar.add(txt_file, arcname="ignore.txt")
+
+    return tar_path
+
+def test_iterate_tar_normal_flow(fake_tar_fixture, monkeypatch: MonkeyPatch) -> None:
+    """
+    Iterates through the tar processing producing normal results
+
+    Args:
+        fake_tar_fixture (str): fake tar file to test the function
+        monkeypatch (MonkeyPatch): patch used to replace the 
+            configurations file
+
+    Returns:
+        None
+    """
+    mock_client = MagicMock()
+    mock_processed_files = set()
+
+    monkeypatch.setattr("data_handling.get_data.config",
+                        {"checkpoints_path": str(fake_tar_fixture.parent / "checkpoint.json")})
+
+    def fake_save_checkpoint(*, processed_files: set) -> None:
+        """
+        Function created to simulate the saving of a checkpoint
+
+        Args:
+            processed_files (set): set of files that have already been 
+                processed
+        
+        Returns:
+            None
+        """
+        mock_processed_files.update(processed_files)
+
+    def fake_safe_extract_member(tar: TarFile,
+                                 member: TarInfo,
+                                 processed_files: set) -> BinaryIO:
+        """
+        Function created to simulate the extraction of a member from the 
+        tar file
+
+        Args:
+            tar (TarFile Object): compressed tar file that is being handled
+            member (TarInfo Object): one of the files that is in the 
+                compressed tar folder
+            processed_files (set): set of files that have already been 
+                processed
+        
+        Returns:
+            (BinaryIO): XML file in binary
+        """
+        if member.name.endswith(".xml"):
+            return io.BytesIO(b"<root><body>content</body></root>")
+        return None
+
+    processed = []
+    def fake_process_xml_member(fileobj: BinaryIO, member_name: str,
+                                client: QdrantClient, collection_name: str) -> None:
+        """
+        Function created to simulate the processing of an XML member
+
+        Args:
+            fileobj (BinaryIO): XML file in binary
+            member_name (str): name of the XML file
+            client (QdrantClient): initialized QdrantClient Object
+            collection_name (str): name of the collection
+        
+        Returns:
+            None
+        """
+        processed.append((member_name, client, collection_name))
+        fileobj.close()
+
+    with patch("data_handling.get_data.load_checkpoint", return_value=mock_processed_files),\
+         patch("data_handling.get_data.save_checkpoint", side_effect=fake_save_checkpoint),\
+         patch("data_handling.get_data.safe_extract_member", side_effect=fake_safe_extract_member),\
+         patch("data_handling.get_data.process_xml_member", side_effect=fake_process_xml_member):
+
+        iterate_tar(mock_client, "my_collection", str(fake_tar_fixture))
+
+    assert any(name == "test.xml" for name, _, _ in processed)
+    assert "test.xml" in mock_processed_files
+
+def test_iterate_tar_handles_value_error(fake_tar_fixture: str,
+                                         monkeypatch: MonkeyPatch,
+                                         caplog: LogCaptureFixture) -> None:
+    """
+    Iterates through the tar processing with incorrect values
+
+    Args:
+        fake_tar_fixture (str): fake tar file to test the function
+        monkeypatch (MonkeyPatch): patch used to replace the 
+            configurations file
+        caplog (LogCaptureFixture): object that captures the logged 
+            information
+            
+    Returns:
+        None
+    """
+    mock_client = MagicMock()
+    monkeypatch.setattr("data_handling.get_data.config",
+                        {"checkpoints_path": str(fake_tar_fixture.parent / "checkpoint.json")})
+
+    monkeypatch.setattr("data_handling.get_data.load_checkpoint", lambda: set())
+
+    def safe_extract_side_effect(tar: TarFile, member: TarInfo, processed_files: set) -> None:
+        """
+        Function created to raise the expected error
+
+        Args:
+            tar (TarFile Object): compressed tar file that is being handled
+            member (TarInfo Object): one of the files that is in the 
+                compressed tar folder
+            processed_files (set): set of files that have already been 
+                processed
+        
+        Returns:
+            None
+        """
+        raise ValueError("Bad file")
+    monkeypatch.setattr("data_handling.get_data.safe_extract_member", safe_extract_side_effect)
+
+    with caplog.at_level(logging.ERROR):
+        iterate_tar(mock_client, "collection", str(fake_tar_fixture))
+
+    assert "Bad file" in caplog.text
+
+def test_iterate_tar_handles_tarfile_open_errors(monkeypatch: MonkeyPatch,
+                                                 caplog: LogCaptureFixture) -> None:
+    """
+    Iterates through the tar testing the opening errors
+
+    Args:
+        fake_tar_fixture (str): fake tar file to test the function
+        monkeypatch (MonkeyPatch): patch used to replace the 
+            configurations file
+        caplog (LogCaptureFixture): object that captures the logged 
+            information
+            
+    Returns:
+        None
+    """
+    mock_client = MagicMock()
+    monkeypatch.setattr("data_handling.get_data.config",
+                        {"checkpoints_path": "/tmp/checkpoint.json"})
+
+    with caplog.at_level(logging.ERROR):
+        iterate_tar(mock_client, "collection", "/non/existent/file.tar.gz")
+
+    assert "Extraction failed" in caplog.text
