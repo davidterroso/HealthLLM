@@ -3,18 +3,25 @@ File used in the testing of the functions responsible for
 extracting the data from the tar file
 """
 
+import os
+import json
 import sys
 import logging
 import io
 import tarfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+import pytest
 from lxml import etree
 from pytest import LogCaptureFixture
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from data_handling.get_data import safe_extract_member, extract_from_xml, process_xml_member
+from data_handling.get_data import safe_extract_member,\
+    extract_from_xml, process_xml_member, load_checkpoint,\
+          save_checkpoint
+
+# For testing the safe_extract_member function
 
 def create_test_tar(tmp_path) -> None:
     """
@@ -134,6 +141,8 @@ def test_safe_extract_member_already_processed(tmp_path: str) -> None:
         member = tar.getmember("test.xml")
         processed_files = {"test.xml"}
         assert safe_extract_member(tar, member, processed_files) is None
+
+# For testing the process_xml_member function
 
 def create_test_xml(tmp_path: str):
     """
@@ -366,3 +375,104 @@ def test_process_xml_member_value_error(caplog: LogCaptureFixture):
                                "collection")
     assert "Data error" in caplog.text
     assert test_fileobj.closed
+
+@pytest.fixture
+def config_patch_fixture(monkeypatch: pytest.MonkeyPatch, tmp_path: str) -> dict:
+    """
+    Fixture for a fake configurations file containing a checkpoint path
+
+    Args:
+        monkeypatch (MonkeyPatch): patch used to replace the 
+            configurations file
+        tmp_path (str): temporary path to the file
+
+    Returns:
+        fake_config (dict): dictionary with the fake configurations
+    """
+    fake_config = {"checkpoints_path": tmp_path / "checkpoint.json"}
+    monkeypatch.setattr("data_handling.get_data.config", fake_config)
+    return fake_config
+
+# Testing function load_checkpoint
+
+def test_load_checkpoint_file_exists(config_patch_fixture: dict) -> None:
+    """
+    Tests the loading of the existing checkpoint file
+
+    Args:
+        config_patch_fixture (dict): fixture defined to mock 
+            the configurations
+
+    Returns:
+        None
+    """
+    data = ["file1.xml", "file2.xml"]
+    with open(config_patch_fixture["checkpoints_path"], "w", encoding="utf-8") as f:
+        json.dump(data, f)
+
+    result = load_checkpoint()
+    assert isinstance(result, set)
+    assert result == {"file1.xml", "file2.xml"}
+
+def test_load_checkpoint_file_missing(config_patch_fixture: dict) -> None:
+    """
+    Tests the attempt of loading a checkpoint file when it 
+    does not exist
+
+    Args:
+        config_patch_fixture (dict): fixture defined to mock 
+            the configurations
+
+    Returns:
+        None
+    """
+
+    if os.path.exists(config_patch_fixture["checkpoints_path"]):
+        os.remove(config_patch_fixture["checkpoints_path"])
+    result = load_checkpoint()
+    assert result == set()
+
+# Testing function save_checkpoint
+
+def test_save_checkpoint_and_load_back(config_patch_fixture: dict) -> None:
+    """
+    Tests the saving of a checkpoint and loading it back
+
+    Args:
+        config_patch_fixture (dict): fixture defined to mock 
+            the configurations
+
+    Returns:
+        None
+    """
+    files_set = {"a.xml", "b.xml"}
+    save_checkpoint(files_set)
+
+    with open(config_patch_fixture["checkpoints_path"], "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    assert set(data) == files_set
+    assert load_checkpoint() == files_set
+
+def test_save_checkpoint_overwrites_file(config_patch_fixture: dict) -> None:
+    """
+    Tests the overwritting of a checkpoint
+
+    Args:
+        config_patch_fixture (dict): fixture defined to mock 
+            the configurations
+
+    Returns:
+        None
+    """
+    with open(config_patch_fixture["checkpoints_path"], "w", encoding="utf-8") as f:
+        json.dump(["old.xml"], f)
+
+    new_set = {"new1.xml", "new2.xml"}
+    save_checkpoint(new_set)
+
+    with open(config_patch_fixture["checkpoints_path"], "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    assert set(data) == new_set
+    assert set(data) == new_set
