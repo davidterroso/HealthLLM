@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 from langchain_huggingface import HuggingFaceEmbeddings
 
-
 def get_embeddings_dims() -> int:
     """
     Used to obtain the dimensions of the embeddings, when 

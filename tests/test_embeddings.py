@@ -11,7 +11,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 from pytest import fixture, raises, LogCaptureFixture, MonkeyPatch
 from langchain.schema import Document
-from langchain_huggingface import HuggingFaceEmbeddings
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
