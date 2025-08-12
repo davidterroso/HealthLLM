@@ -1,6 +1,7 @@
 """
-File used in the testing of the functions responsible for 
-extracting the data from the tar file
+Tests the functions that extract data from the XML files 
+contained in the tar file and the functions that iterate
+the tar folder
 """
 
 import os
@@ -14,15 +15,13 @@ from tarfile import TarFile, TarInfo
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 from qdrant_client import QdrantClient
-from langchain.schema import Document
 from lxml import etree
-from pytest import fixture, LogCaptureFixture, MonkeyPatch, raises
+from pytest import fixture, LogCaptureFixture, MonkeyPatch
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from data_handling.get_data import safe_extract_member,\
-    extract_from_xml, process_xml_member, load_checkpoint,\
-          save_checkpoint, text_chunker, iterate_tar
+    extract_from_xml, process_xml_member, iterate_tar
 
 config_path = os.path.join(os.path.dirname(__file__),
                            '..', 'data_handling', 'config.json')
@@ -384,193 +383,6 @@ def test_process_xml_member_value_error(caplog: LogCaptureFixture):
                                "collection")
     assert "Data error" in caplog.text
     assert test_fileobj.closed
-
-@fixture
-def config_patch_fixture(monkeypatch: MonkeyPatch, tmp_path: str) -> dict:
-    """
-    Fixture for a fake configurations file containing a checkpoint path
-
-    Args:
-        monkeypatch (MonkeyPatch): patch used to replace the 
-            configurations file
-        tmp_path (str): temporary path to the file
-
-    Returns:
-        fake_config (dict): dictionary with the fake configurations
-    """
-    fake_config = {"checkpoints_path": tmp_path / "checkpoint.json"}
-    monkeypatch.setattr("data_handling.get_data.config", fake_config)
-    return fake_config
-
-# Testing function load_checkpoint
-
-def test_load_checkpoint_file_exists(config_patch_fixture: dict) -> None:
-    """
-    Tests the loading of the existing checkpoint file
-
-    Args:
-        config_patch_fixture (dict): fixture defined to mock 
-            the configurations
-
-    Returns:
-        None
-    """
-    data = ["file1.xml", "file2.xml"]
-    with open(config_patch_fixture["checkpoints_path"], "w", encoding="utf-8") as file_obj:
-        json.dump(data, file_obj)
-
-    result = load_checkpoint()
-    assert isinstance(result, set)
-    assert result == {"file1.xml", "file2.xml"}
-
-def test_load_checkpoint_file_missing(config_patch_fixture: dict) -> None:
-    """
-    Tests the attempt of loading a checkpoint file when it 
-    does not exist
-
-    Args:
-        config_patch_fixture (dict): fixture defined to mock 
-            the configurations
-
-    Returns:
-        None
-    """
-
-    if os.path.exists(config_patch_fixture["checkpoints_path"]):
-        os.remove(config_patch_fixture["checkpoints_path"])
-    result = load_checkpoint()
-    assert result == set()
-
-# Testing function save_checkpoint
-
-def test_save_checkpoint_and_load_back(config_patch_fixture: dict) -> None:
-    """
-    Tests the saving of a checkpoint and loading it back
-
-    Args:
-        config_patch_fixture (dict): fixture defined to mock 
-            the configurations
-
-    Returns:
-        None
-    """
-    files_set = {"a.xml", "b.xml"}
-    save_checkpoint(files_set)
-
-    with open(config_patch_fixture["checkpoints_path"], "r", encoding="utf-8") as file_obj:
-        data = json.load(file_obj)
-
-    assert set(data) == files_set
-    assert load_checkpoint() == files_set
-
-def test_save_checkpoint_overwrites_file(config_patch_fixture: dict) -> None:
-    """
-    Tests the overwritting of a checkpoint
-
-    Args:
-        config_patch_fixture (dict): fixture defined to mock 
-            the configurations
-
-    Returns:
-        None
-    """
-    with open(config_patch_fixture["checkpoints_path"], "w", encoding="utf-8") as file_obj:
-        json.dump(["old.xml"], file_obj)
-
-    new_set = {"new1.xml", "new2.xml"}
-    save_checkpoint(new_set)
-
-    with open(config_patch_fixture["checkpoints_path"], "r", encoding="utf-8") as file_obj:
-        data = json.load(file_obj)
-
-    assert set(data) == new_set
-    assert set(data) == new_set
-
-# Testing function text_chunker
-
-def test_text_chunker_basic(monkeypatch: MonkeyPatch) -> None:
-    """
-    Tests the chunker basic functions
-
-    Args:
-        monkeypatch (MonkeyPatch): patch used to replace the 
-            configurations file
-
-    Returns:
-        None
-    """
-    monkeypatch.setitem(config, "chunk_size", 10)
-    monkeypatch.setitem(config, "chunk_overlap", 2)
-
-    text = "This is a simple test string to be chunked into parts."
-    metadata = {"source": "unit_test"}
-
-    docs = text_chunker(text, metadata)
-
-    assert isinstance(docs, list)
-    assert all(isinstance(d, Document) for d in docs)
-    assert all(d.metadata == metadata for d in docs)
-    assert any("test" in d.page_content for d in docs)
-
-def test_text_chunker_empty_string(monkeypatch: MonkeyPatch) -> None:
-    """
-    Tests the chunker when given an empty string
-
-    Args:
-        monkeypatch (MonkeyPatch): patch used to replace the 
-            configurations file
-
-    Returns:
-        None
-    """
-    monkeypatch.setitem(config, "chunk_size", 10)
-    monkeypatch.setitem(config, "chunk_overlap", 2)
-
-    docs = text_chunker("", None)
-    assert docs == []
-
-def test_text_chunker_none_metadata(monkeypatch: MonkeyPatch) -> None:
-    """
-    Tests the chunker when given an empty metadata
-    Args:
-        monkeypatch (MonkeyPatch): patch used to replace the 
-            configurations file
-
-    Returns:
-        None
-    """
-    monkeypatch.setitem(config, "chunk_size", 10)
-    monkeypatch.setitem(config, "chunk_overlap", 2)
-
-    text = "Short text"
-    docs = text_chunker(text, None)
-    assert all(isinstance(d.metadata, dict) for d in docs)
-
-def test_text_chunker_invalid_full_text_type():
-    """
-    Tests the chunker when given an invalid text type
-
-    Args:
-        None
-
-    Returns:
-        None
-    """
-    with raises(TypeError):
-        text_chunker(1234, None)
-
-def test_text_chunker_invalid_metadata_type():
-    """
-    Tests the chunker when given an invalid metadata type
-
-    Args:
-        None
-
-    Returns:
-        None
-    """
-    with raises(TypeError):
-        text_chunker("text", metadata="not a dict")
 
 # Tests the iterate_tar function
 
