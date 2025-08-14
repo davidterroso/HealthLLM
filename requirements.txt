@@ -3,6 +3,8 @@ langchain-core==0.3.68
 langchain-community==0.3.27
 langchain-huggingface==0.3.0
 lxml==6.0.0
+lxml-stubs==0.5.1
 python-dotenv==1.1.1
 qdrant-client==1.15.1
+types-tqdm==4.67.0.20250809
 transformers==4.53.2
