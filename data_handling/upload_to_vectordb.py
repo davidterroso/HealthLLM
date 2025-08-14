@@ -6,6 +6,7 @@ is hosted in the cloud
 import os
 import json
 import logging
+import uuid
 from typing import List
 from tqdm import tqdm
 from langchain.schema import Document
@@ -107,9 +108,11 @@ def upload_docs_to_qdrant(docs: List[Document],
             if not payload.get('title'):
                 raise KeyError(f"Missing 'title' in metadata for doc #{i}")
 
+            point_id = uuid.uuid5(uuid.NAMESPACE_DNS, f"{base_id}_chunk_{i}")
+
             points.append(
                 PointStruct(
-                    id=f"{base_id}_chunk_{i}",
+                    id=point_id,
                     vector=embedding,
                     payload=payload
                 )
