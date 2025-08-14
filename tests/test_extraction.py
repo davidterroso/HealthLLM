@@ -10,18 +10,23 @@ import sys
 import logging
 import io
 import tarfile
-from typing import BinaryIO
+from typing import BinaryIO, Optional
 from tarfile import TarFile, TarInfo
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import Mock, MagicMock, patch
 from qdrant_client import QdrantClient
 from lxml import etree
 from pytest import fixture, LogCaptureFixture, MonkeyPatch
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from data_handling.get_data import safe_extract_member,\
-    extract_from_xml, process_xml_member, iterate_tar
+# pylint: disable=wrong-import-position
+from data_handling.get_data import (
+    safe_extract_member,
+    extract_from_xml,
+    process_xml_member,
+    iterate_tar
+)
 
 config_path = os.path.join(os.path.dirname(__file__),
                            '..', 'data_handling', 'config.json')
@@ -30,17 +35,17 @@ with open(os.path.abspath(config_path), "r", encoding="utf-8") as f:
     config = json.load(f)
 
 # For testing the safe_extract_member function
-
-def create_test_tar(tmp_path) -> None:
+def create_test_tar(tmp_path) -> str:
     """
     Creates a mock tar file to test the functions
 
     Args:
-        tmp_path (str): path to the temporary tar 
+        tmp_path: path to the temporary tar 
             file which is going to be created
     
     Returns:
-        None
+        tar_path (str): full path to the created 
+            tar file
     """
     tar_path = tmp_path / "test.tar.gz"
     xml_content = b"<root><title>Test</title></root>"
@@ -58,15 +63,14 @@ def create_test_tar(tmp_path) -> None:
 
     return tar_path
 
-def test_safe_extract_member_xml_only(tmp_path: str) -> None:
+def test_safe_extract_member_xml_only(tmp_path) -> None:
     """
     Tests the safe extraction with the files created in 
     the previous function, passing the .xml file and 
     ignoring the .txt file
 
     Args:
-        tmp_path (str): path to the created temporary 
-            tar file
+        tmp_path: path to the created temporary tar file
 
     Returns:
         None
@@ -80,19 +84,19 @@ def test_safe_extract_member_xml_only(tmp_path: str) -> None:
             else:
                 assert fobj is None
 
-def test_safe_extract_member_directory(tmp_path: str) -> None:
+
+def test_safe_extract_member_directory(tmp_path) -> None:
     """
     Tests the handling other directories inside the 
     .tar file
 
     Args:
-        tmp_path (str): path to the created temporary 
-            .tar file
+        tmp_path: path to the created temporary .tar file
 
     Returns:
         None
     """
-    tar_path = tmp_path / "dir_test.tar.gz"
+    tar_path = Path(tmp_path) / "dir_test.tar.gz"
     with tarfile.open(tar_path, "w:gz") as tar:
         dir_info = tarfile.TarInfo(name="somedir/")
         dir_info.type = tarfile.DIRTYPE
@@ -103,22 +107,20 @@ def test_safe_extract_member_directory(tmp_path: str) -> None:
         assert safe_extract_member(tar, member, set()) is None
 
 
-def test_safe_extract_member_symlink(tmp_path: str,
-                                     caplog: LogCaptureFixture) -> None:
+def test_safe_extract_member_symlink(tmp_path, caplog: LogCaptureFixture) -> None:
     """
     Tests what happens when a symlink file is found 
     inside the .tar file
 
     Args:
-        tmp_path (str): path to the created temporary 
-            tar file
+        tmp_path: path to the created temporary tar file
         caplog (LogCaptureFixture): object that 
             captures the logged information
 
     Returns:
         None
     """
-    tar_path = tmp_path / "link_test.tar.gz"
+    tar_path = Path(tmp_path) / "link_test.tar.gz"
     with tarfile.open(tar_path, "w:gz") as tar:
         link_info = tarfile.TarInfo(name="link.xml")
         link_info.type = tarfile.SYMTYPE
@@ -131,15 +133,15 @@ def test_safe_extract_member_symlink(tmp_path: str,
         assert result is None
         assert "Skipping symbolic link" in caplog.text
 
-def test_safe_extract_member_already_processed(tmp_path: str) -> None:
+
+def test_safe_extract_member_already_processed(tmp_path) -> None:
     """
     Tests what happens when a file that has already 
     been extracted appears in the list of files to 
     be extracted
 
     Args:
-        tmp_path (str): path to the created temporary 
-            tar file
+        tmp_path: path to the created temporary tar file
 
     Returns:
         None
@@ -150,18 +152,18 @@ def test_safe_extract_member_already_processed(tmp_path: str) -> None:
         processed_files = {"test.xml"}
         assert safe_extract_member(tar, member, processed_files) is None
 
-# For testing the process_xml_member function
 
-def create_test_xml(tmp_path: str):
+# For testing the process_xml_member function
+def create_test_xml(tmp_path):
     """
     Creates a mock XML file to test the functions
 
     Args:
-        tmp_path (str): path to the temporary XML 
+        tmp_path: path to the temporary XML 
             file which is going to be created
     
     Returns:
-        None
+        Path to the created XML file
     """
     xml_content = b"""
     <article>
@@ -185,9 +187,10 @@ def create_test_xml(tmp_path: str):
         </body>
     </article>
     """
-    xml_file = tmp_path / "test.xml"
+    xml_file = Path(tmp_path) / "test.xml"
     xml_file.write_bytes(xml_content)
     return xml_file
+
 
 def test_extract_from_valid_xml(tmp_path):
     """
@@ -195,8 +198,7 @@ def test_extract_from_valid_xml(tmp_path):
     from the mock XML file
 
     Args:
-        tmp_path (str): path to the created temporary 
-            XML file
+        tmp_path: path to the created temporary XML file
 
     Returns:
         None
@@ -211,13 +213,11 @@ def test_extract_from_valid_xml(tmp_path):
     assert metadata["doi"] == "10.1234/test"
     assert metadata["pmid"] == "987654"
 
+
 def test_extract_from_binary_stream() -> None:
     """
     Tests if the information is correctly extracted 
     when passing it as a binary stream
-
-    Args:
-        None
 
     Returns:
         None
@@ -226,7 +226,7 @@ def test_extract_from_binary_stream() -> None:
 
     text, metadata = extract_from_xml(xml_stream, "stream.xml")
 
-    assert "Stream content" in text
+    assert text is not None and "Stream content" in text
     assert metadata["file"] == "stream.xml"
 
 
@@ -242,7 +242,6 @@ def test_extract_from_malformed_xml(caplog):
     Returns:
         None
     """
-
     bad_xml_stream = io.BytesIO(b"<root><body><p>Missing closing tags")
 
     with caplog.at_level(logging.ERROR):
@@ -270,6 +269,7 @@ def test_extract_from_nonexistent_file(caplog):
     assert text is None
     assert not metadata
     assert any("XML parsing error" in message for message in caplog.messages)
+
 
 @patch("data_handling.get_data.embed_docs")
 @patch("data_handling.get_data.text_chunker")
@@ -309,6 +309,7 @@ def test_process_xml_member_correct_path(mock_extract: MagicMock,
                                        "test_collection")
     assert test_fileobj.closed
 
+
 def test_process_xml_member_xml_error(caplog: LogCaptureFixture):
     """
     Tests the processing of an incorrect XML file
@@ -323,8 +324,10 @@ def test_process_xml_member_xml_error(caplog: LogCaptureFixture):
     mock_qdrant_client = MagicMock(name="QdrantClient")
     test_fileobj = io.BytesIO(b"<root><body><p>content</p></body></root>")
 
-    with patch("data_handling.get_data.extract_from_xml",
-               side_effect=etree.XMLSyntaxError("msg", 0, 0, 0, "bad.xml")):
+    with patch(
+            "data_handling.get_data.extract_from_xml",
+            side_effect=ValueError("XML parsing error")
+        ):
         with caplog.at_level(logging.ERROR):
             process_xml_member(test_fileobj,
                                "bad.xml",
@@ -359,6 +362,7 @@ def test_process_xml_member_unicode_error(caplog: LogCaptureFixture):
     assert "Encoding error" in caplog.text
     assert test_fileobj.closed
 
+
 def test_process_xml_member_value_error(caplog: LogCaptureFixture):
     """
     Tests the processing of a XML file with a 
@@ -384,15 +388,15 @@ def test_process_xml_member_value_error(caplog: LogCaptureFixture):
     assert "Data error" in caplog.text
     assert test_fileobj.closed
 
-# Tests the iterate_tar function
 
+# Tests the iterate_tar function
 @fixture
-def fake_tar_fixture(tmp_path) -> str:
+def tar_fixture(tmp_path) -> str:
     """
     Creates a fake tar file fixture
 
     Args:
-        tmp_path (str): path to the folder where the 
+        tmp_path: path to the folder where the 
             temporary tar file is going to be created
 
     Returns:
@@ -413,12 +417,13 @@ def fake_tar_fixture(tmp_path) -> str:
 
     return tar_path
 
-def test_iterate_tar_normal_flow(fake_tar_fixture, monkeypatch: MonkeyPatch) -> None:
+
+def test_iterate_tar_normal_flow(tar_fixture, monkeypatch: MonkeyPatch) -> None:
     """
     Iterates through the tar processing producing normal results
 
     Args:
-        fake_tar_fixture (str): fake tar file to test the function
+        tar_fixture: fake tar file to test the function
         monkeypatch (MonkeyPatch): patch used to replace the 
             configurations file
 
@@ -429,7 +434,7 @@ def test_iterate_tar_normal_flow(fake_tar_fixture, monkeypatch: MonkeyPatch) -> 
     mock_processed_files = set()
 
     monkeypatch.setattr("data_handling.get_data.config",
-                        {"checkpoints_path": str(fake_tar_fixture.parent / "checkpoint.json")})
+                        {"checkpoints_path": str(Path(tar_fixture).parent / "checkpoint.json")})
 
     def fake_save_checkpoint(*, processed_files: set) -> None:
         """
@@ -446,7 +451,7 @@ def test_iterate_tar_normal_flow(fake_tar_fixture, monkeypatch: MonkeyPatch) -> 
 
     def fake_safe_extract_member(tar: TarFile,
                                  member: TarInfo,
-                                 processed_files: set) -> BinaryIO:
+                                 processed_files: set) -> Optional[BinaryIO]:
         """
         Function created to simulate the extraction of a member from the 
         tar file
@@ -488,19 +493,19 @@ def test_iterate_tar_normal_flow(fake_tar_fixture, monkeypatch: MonkeyPatch) -> 
          patch("data_handling.get_data.safe_extract_member", side_effect=fake_safe_extract_member),\
          patch("data_handling.get_data.process_xml_member", side_effect=fake_process_xml_member):
 
-        iterate_tar(mock_client, "my_collection", str(fake_tar_fixture))
+        iterate_tar(mock_client, "my_collection", str(tar_fixture))
 
     assert any(name == "test.xml" for name, _, _ in processed)
     assert "test.xml" in mock_processed_files
 
-def test_iterate_tar_handles_value_error(fake_tar_fixture: str,
+def test_iterate_tar_handles_value_error(tar_fixture,
                                          monkeypatch: MonkeyPatch,
                                          caplog: LogCaptureFixture) -> None:
     """
     Iterates through the tar processing with incorrect values
 
     Args:
-        fake_tar_fixture (str): fake tar file to test the function
+        tar_fixture: fake tar file to test the function
         monkeypatch (MonkeyPatch): patch used to replace the 
             configurations file
         caplog (LogCaptureFixture): object that captures the logged 
@@ -511,11 +516,17 @@ def test_iterate_tar_handles_value_error(fake_tar_fixture: str,
     """
     mock_client = MagicMock()
     monkeypatch.setattr("data_handling.get_data.config",
-                        {"checkpoints_path": str(fake_tar_fixture.parent / "checkpoint.json")})
+                    {"checkpoints_path": str(Path(tar_fixture).parent / "checkpoint.json")})
 
-    monkeypatch.setattr("data_handling.get_data.load_checkpoint", lambda: set())
+    def fake_load_checkpoint() -> set:
+        """Mock load_checkpoint function."""
+        return set()
 
-    def safe_extract_side_effect(tar: TarFile, member: TarInfo, processed_files: set) -> None:
+    monkeypatch.setattr("data_handling.get_data.load_checkpoint", fake_load_checkpoint)
+
+    def safe_extract_side_effect(tar: TarFile,
+                                 member: TarInfo,
+                                 processed_files: set) -> None:
         """
         Function created to raise the expected error
 
@@ -530,10 +541,11 @@ def test_iterate_tar_handles_value_error(fake_tar_fixture: str,
             None
         """
         raise ValueError("Bad file")
+
     monkeypatch.setattr("data_handling.get_data.safe_extract_member", safe_extract_side_effect)
 
     with caplog.at_level(logging.ERROR):
-        iterate_tar(mock_client, "collection", str(fake_tar_fixture))
+        iterate_tar(mock_client, "collection", str(tar_fixture))
 
     assert "Bad file" in caplog.text
 
@@ -543,7 +555,6 @@ def test_iterate_tar_handles_tarfile_open_errors(monkeypatch: MonkeyPatch,
     Iterates through the tar testing the opening errors
 
     Args:
-        fake_tar_fixture (str): fake tar file to test the function
         monkeypatch (MonkeyPatch): patch used to replace the 
             configurations file
         caplog (LogCaptureFixture): object that captures the logged 

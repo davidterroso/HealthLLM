@@ -106,7 +106,7 @@ def process_xml_member(fileobj: IO,
             embed_docs(chunks, client, collection_name)
         else:
             logging.warning("No text extracted from %s", member_name)
-    except etree.XMLSyntaxError as e:
+    except etree.XMLSyntaxError as e: # pylint: disable=c-extension-no-member
         logging.error("XML parsing error in %s: %s", member_name, e)
     except UnicodeDecodeError as e:
         logging.error("Encoding error in %s: %s", member_name, e)
@@ -201,7 +201,7 @@ def extract_from_xml(xml_source: Union[str, BinaryIO],
         metadata (Dict[str, str]): the metadata from the article
     """
     try:
-        tree = etree.parse(xml_source)
+        tree = etree.parse(xml_source) # pylint: disable=c-extension-no-member
 
         results = tree.xpath("//body//text()")
         if not isinstance(results, list):
@@ -225,7 +225,7 @@ def extract_from_xml(xml_source: Union[str, BinaryIO],
 
         return text, metadata
 
-    except (etree.XMLSyntaxError, OSError, IOError, PermissionError) as e:
+    except (etree.XMLSyntaxError, OSError, IOError, PermissionError) as e: # pylint: disable=c-extension-no-member
         logging.error("XML parsing error in %s: %s - %s", xml_source, type(e).__name__, e)
         return None, {}
 
