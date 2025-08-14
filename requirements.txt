@@ -7,4 +7,5 @@ lxml-stubs==0.5.1
 python-dotenv==1.1.1
 qdrant-client==1.15.1
 types-tqdm==4.67.0.20250809
+sentence-transformers==5.0.0
 transformers==4.53.2
