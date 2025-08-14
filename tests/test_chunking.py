@@ -11,6 +11,7 @@ from pytest import MonkeyPatch, raises
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+# pylint: disable=wrong-import-position
 from data_handling.get_data import text_chunker
 
 config_path = os.path.join(os.path.dirname(__file__),

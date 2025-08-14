@@ -17,6 +17,7 @@ config_path = os.path.join(os.path.dirname(__file__),
 with open(os.path.abspath(config_path), "r", encoding="utf-8") as f:
     config = json.load(f)
 
+# pylint: disable=wrong-import-position
 from utils.get_embeddings_dims import get_embeddings_dims
 
 def test_get_embeddings_dims_success() -> None:
@@ -30,7 +31,7 @@ def test_get_embeddings_dims_success() -> None:
     Returns:
         None
     """
-    mock_config = {"hf_embedding_model": "some-model"}
+    mock_config: dict[str, object] = {"hf_embedding_model": "some-model"}
 
     fake_embedding_vector = [0.1] * config["embedding_dim"]
 
@@ -63,7 +64,7 @@ def test_get_embeddings_dims_raises_without_model() -> None:
     Returns:
         None
     """
-    mock_config = {}
+    mock_config: dict[str, object] = {}
 
     m_open = mock_open(read_data=json.dumps(mock_config))
 

@@ -14,6 +14,7 @@ from langchain.schema import Document
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+# pylint: disable=wrong-import-position
 import data_handling.embedding_functions as emb_func_module
 from data_handling.embedding_functions import embed_chunks, embed_docs
 

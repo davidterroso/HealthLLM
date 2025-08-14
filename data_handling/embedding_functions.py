@@ -61,13 +61,13 @@ def embed_docs(docs: List[Document],
                           client=client,
                           collection_name=collection_name)
 
-def embed_chunks(chunks: str) -> List[List[float]]:
+def embed_chunks(chunks: List[str]) -> List[List[float]]:
     """
     Function used to embed any set of chunks of text, using 
     the given HuggingFace model
 
     Args:
-        chunks (str): chunks desired to embedd
+        chunks (List[str]): chunks desired to embedd
     
     Returns:
         vectors (List[List[float]]): embedding of the given chunks

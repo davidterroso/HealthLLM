@@ -3,7 +3,7 @@ This file is used to fetch the articles from the PMC website,
 through the website, or to handle the bulk data downloaded
 """
 
-from typing import BinaryIO, Dict, List, Optional, Tuple, Union
+from typing import BinaryIO, Dict, IO, List, Optional, Tuple, Union
 from io import BytesIO
 import os
 import json
@@ -50,7 +50,7 @@ def data_pipeline(collection_name: str, tar_file_dir: str) -> None:
                 tar_file_dir=tar_file_dir)
 
 def safe_extract_member(tar: tarfile.TarFile, member: tarfile.TarInfo,
-                        processed_files: set) -> BinaryIO:
+                        processed_files: set) -> Optional[IO]:
     """
     Handles the extraction of the tar file safely, handling its 
     errors gracefully
@@ -63,7 +63,7 @@ def safe_extract_member(tar: tarfile.TarFile, member: tarfile.TarInfo,
             processed
 
     Returns:
-        (Binary IO): XML file in binary
+        (Optional[IO]): XML file in binary or None
     """
     if not member.name.lower().endswith(".xml"):
         return None
@@ -80,7 +80,7 @@ def safe_extract_member(tar: tarfile.TarFile, member: tarfile.TarInfo,
 
     return tar.extractfile(member)
 
-def process_xml_member(fileobj: BinaryIO,
+def process_xml_member(fileobj: IO,
                        member_name: str,
                        client: QdrantClient,
                        collection_name: str) -> None:
@@ -101,8 +101,11 @@ def process_xml_member(fileobj: BinaryIO,
     try:
         file_content = fileobj.read()
         text, metadata = extract_from_xml(BytesIO(file_content), member_name)
-        chunks = text_chunker(text, metadata)
-        embed_docs(chunks, client, collection_name)
+        if text is not None:
+            chunks = text_chunker(text, metadata)
+            embed_docs(chunks, client, collection_name)
+        else:
+            logging.warning("No text extracted from %s", member_name)
     except etree.XMLSyntaxError as e:
         logging.error("XML parsing error in %s: %s", member_name, e)
     except UnicodeDecodeError as e:
@@ -185,7 +188,7 @@ def iterate_tar(client: QdrantClient,
         logging.error("Extraction failed: %s", e)
 
 def extract_from_xml(xml_source: Union[str, BinaryIO],
-                     file_name: str) -> Tuple[Optional[str], Dict[str, str]]:
+                     file_name: str) -> Tuple[Optional[str], Dict[str, Optional[str]]]:
     """
     Used in the extraction of relevant information from the selected XML file
 
@@ -199,7 +202,11 @@ def extract_from_xml(xml_source: Union[str, BinaryIO],
     """
     try:
         tree = etree.parse(xml_source)
-        text = ' '.join(tree.xpath('//body//text()')).strip()
+
+        results = tree.xpath("//body//text()")
+        if not isinstance(results, list):
+            results = [results]
+        text = " ".join(map(str, results)).strip()
 
         title = tree.findtext('.//article-title')
         journal = tree.findtext('.//journal-title')

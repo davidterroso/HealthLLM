@@ -2,12 +2,12 @@
 Used in the comparison between the embedded queries and the documents 
 in the VectorDB
 
-THIS FILE IS OUTDATED, AND CORRESPONDS TO AN OLDER VERSION OF THE CODE
+THIS FILE IS OUTDATED AND CORRESPONDS TO AN OLDER VERSION OF THE CODE
 """
 
 import json
 import os
-from typing import List
+from typing import List, Union, Tuple
 from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings, HuggingFaceEndpoint
 from langchain_huggingface.llms import HuggingFacePipeline
@@ -16,7 +16,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables import RunnablePassthrough, Runnable
 from transformers import pipeline, AutoModelForSeq2SeqLM, AutoTokenizer
 
 load_dotenv()
@@ -24,6 +24,66 @@ hf_api_key = os.getenv("HUGGINGFACEHUB_API_TOKEN")
 
 with open("config.json", "r", encoding="utf-8") as f:
     config = json.load(f)
+
+def create_embedding_function() -> Tuple[Union[HuggingFaceEmbeddings, OpenAIEmbeddings], str]:
+    """
+    Factory function to create the appropriate embedding function and vector store name
+    
+    Args:
+        None
+
+    Returns:
+        embedding_function (Union[HuggingFaceEmbeddings, OpenAIEmbeddings]): function used 
+            in the embedding
+        vector_store_name (str): name of the vector store
+    """
+    if config["local_or_api_embedding"] == "local":
+        embedding_func = HuggingFaceEmbeddings(model_name=config["local_embedding_model"])
+        vs_name = "../local_embeddings/hf_faiss_pmc"
+    elif config["local_or_api_embedding"] == "api":
+        embedding_func = OpenAIEmbeddings(model=config["openai_embedding_model"])
+        vs_name = "../local_embeddings/openai_faiss_pmc"
+    else:
+        raise ValueError(f"Invalid embedding source: {config['local_or_api_embedding']}")
+
+    return embedding_func, vs_name
+
+def create_llm_and_embedding() -> Tuple[Union[HuggingFacePipeline, HuggingFaceEndpoint], 
+                                       Union[HuggingFaceEmbeddings, OpenAIEmbeddings], str]:
+    """
+    Factory function to create the appropriate LLM and embedding function
+    
+    Args:
+        None
+
+    Returns:
+        llm (Union[HuggingFacePipeline, HuggingFaceEndpoint]): function used when calling 
+            the LLM
+        embedding_function (Union[HuggingFaceEmbeddings, OpenAIEmbeddings]): function used 
+            in the embedding
+        vector_store_name (str): name of the vector store
+    """
+    if config["local_or_api_llm"] == "local":
+        tokenizer = AutoTokenizer.from_pretrained(config["local_llm"])
+        model = AutoModelForSeq2SeqLM.from_pretrained(config["local_llm"])
+        embedding_func = HuggingFaceEmbeddings(model_name=config["local_embedding_model"])
+        vs_name = "../local_embeddings/hf_faiss_pmc"
+
+        pipe = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
+        llm_instance = HuggingFacePipeline(pipeline=pipe)
+    elif config["local_or_api_llm"] == "api":
+        embedding_func = OpenAIEmbeddings(model=config["openai_embedding_model"])
+        vs_name = "../local_embeddings/openai_faiss_pmc"
+        llm_instance = HuggingFaceEndpoint(
+            repo_id=config["mistral_llm"],
+            model=config["mistral_llm"],
+            model_kwargs={"temperature": 0.7, "max_new_tokens": 512},
+            huggingfacehub_api_token=hf_api_key
+        )
+    else:
+        raise ValueError(f"Invalid LLM source: {config['local_or_api_llm']}")
+
+    return llm_instance, embedding_func, vs_name
 
 def search_by_query(query: str) -> List[Document]:
     """
@@ -38,20 +98,7 @@ def search_by_query(query: str) -> List[Document]:
         results (List[Document]): list of 
             documents retrieved
     """
-
-    if config["local_or_api_embedding"] == "local":
-        embedding_function = HuggingFaceEmbeddings(model_name=config["local_embedding_model"])
-        vs_name = "../local_embeddings/hf_faiss_pmc"
-    elif config["local_or_api_embedding"] == "api":
-        # In this case, the embeddings are performed using the OpenAI API
-        # The selected model is lightest embedding model from this API
-        # Other examples:
-        # text-embedding-3-large
-        # text-embedding-ada-002
-        embedding_function = OpenAIEmbeddings(model=["openai_embedding_model"])
-        vs_name = "../local_embeddings/openai_faiss_pmc"
-    else:
-        raise ValueError(f"Invalid embedding source: {config["local_or_api_embedding"]}")
+    embedding_function, vs_name = create_embedding_function()
 
     # Dangerous deserialization is on because the data is local
     vector_store = FAISS.load_local(vs_name,
@@ -62,7 +109,8 @@ def search_by_query(query: str) -> List[Document]:
 
     return results
 
-def format_docs(docs: List[str]) -> str:
+
+def format_docs(docs: List[Document]) -> str:
     """
     Function used to format the documents it receives, by 
     joining consecutive documents through paragraphs.
@@ -74,6 +122,7 @@ def format_docs(docs: List[str]) -> str:
         str: documents formated into a single string
     """
     return "\n\n".join(doc.page_content for doc in docs)
+
 
 def answer_questions(query: str) -> str:
     """
@@ -90,31 +139,12 @@ def answer_questions(query: str) -> str:
             answer (str): answer given by the selected LLM
 
     """
-    # Gets the model depending on the configurations
-    # between local or through an API
-    if config["local_or_api_llm"] == "local":
-        tokenizer = AutoTokenizer.from_pretrained(config["local_llm"])
-        model = AutoModelForSeq2SeqLM.from_pretrained(config["local_llm"])
-        embedding_function = HuggingFaceEmbeddings(model_name=config["local_embedding_model"])
-        vs_name = "../local_embeddings/hf_faiss_pmc"
-
-        pipe = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
-        llm = HuggingFacePipeline(pipeline=pipe)
-    elif config["local_or_api_llm"] == "api":
-        embedding_function = OpenAIEmbeddings(model=["openai_embedding_model"])
-        vs_name = "../local_embeddings/openai_faiss_pmc"
-        llm = HuggingFaceEndpoint(
-            repo_id=config["mistral_llm"],
-            model_kwargs={"temperature": 0.7, "max_new_tokens": 512},
-            huggingfacehub_api_token=hf_api_key
-        )
-    else:
-        raise ValueError(f"Invalid embedding source: {config["local_or_api_embedding"]}")
+    llm, embedding_function, vs_name = create_llm_and_embedding()
+    
     # Dangerous deserialization is on because the data is local
     vector_store = FAISS.load_local(vs_name,
                                     embeddings=embedding_function,
                                     allow_dangerous_deserialization=True)
-
 
     prompt = PromptTemplate.from_template(
         """
@@ -135,7 +165,7 @@ def answer_questions(query: str) -> str:
         Answer:
         """)
 
-    qa_chain = (
+    qa_chain: Runnable = (
         {
             "context": vector_store.as_retriever() | format_docs,
             "question": RunnablePassthrough(),
@@ -148,5 +178,6 @@ def answer_questions(query: str) -> str:
     print("\n Answer:", result)
     return result
 
-QUERY = "foot shape differences in diabetic patients"
-answer_questions(query=QUERY)
+if __name__ == "__main__":
+    QUERY = "foot shape differences in diabetic patients"
+    answer_questions(query=QUERY)
