@@ -20,7 +20,6 @@ config_path = os.path.join(os.path.dirname(__file__),
 with open(os.path.abspath(config_path), "r", encoding="utf-8") as f:
     config = json.load(f)
 
-
 def test_text_chunker_basic(monkeypatch: MonkeyPatch) -> None:
     """
     Tests the chunker basic functions

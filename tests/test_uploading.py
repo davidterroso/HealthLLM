@@ -69,7 +69,6 @@ def test_initiate_qdrant_session_missing_env(monkeypatch: MonkeyPatch) -> None:
     with raises(ValueError, match="QDRANT_API_KEY is not set"):
         upload_mod.initiate_qdrant_session("test")
 
-
 def test_initiate_qdrant_session_missing_embedding_dim(monkeypatch: MonkeyPatch) -> None:
     """
     Tests the function that initiates the Qdrant session, 
@@ -92,7 +91,6 @@ def test_initiate_qdrant_session_missing_embedding_dim(monkeypatch: MonkeyPatch)
         upload_mod.initiate_qdrant_session("test")
 
     upload_mod.config = orig_config
-
 
 def test_upload_docs_to_qdrant_success(caplog: LogCaptureFixture) -> None:
     """
@@ -135,7 +133,6 @@ def test_upload_docs_to_qdrant_success(caplog: LogCaptureFixture) -> None:
             assert "text_preview" in point.payload
     assert len(all_points) == len(docs)
 
-
 def test_upload_docs_to_qdrant_missing_embedding_dim() -> None:
     """
     Tests the function that uploads the embeddings to the 
@@ -153,7 +150,6 @@ def test_upload_docs_to_qdrant_missing_embedding_dim() -> None:
             upload_mod.upload_docs_to_qdrant([], [], "base", MagicMock(), "collection")
     finally:
         upload_mod.config = orig_config
-
 
 def test_upload_docs_to_qdrant_bad_embedding_size(caplog: LogCaptureFixture) -> None:
     """
@@ -179,7 +175,6 @@ def test_upload_docs_to_qdrant_bad_embedding_size(caplog: LogCaptureFixture) -> 
     assert "Invalid vector size" in caplog.text
     client.upsert.assert_not_called()
 
-
 def test_upload_docs_to_qdrant_missing_title(caplog: LogCaptureFixture) -> None:
     """
     Tests the function that uploads the embeddings to the 
@@ -202,7 +197,6 @@ def test_upload_docs_to_qdrant_missing_title(caplog: LogCaptureFixture) -> None:
 
     assert "Missing 'title'" in caplog.text
     client.upsert.assert_not_called()
-
 
 def test_upload_docs_to_qdrant_upsert_raises() -> None:
     """
@@ -235,7 +229,6 @@ def test_upload_docs_to_qdrant_upsert_raises() -> None:
         client.upsert.side_effect = raise_unexpected_response
         with raises(RuntimeError, match="Qdrant upsert failed"):
             upload_mod.upload_docs_to_qdrant(docs, embeddings, "pmid", client, "collection")
-
 
 def test_upload_docs_to_qdrant_connection_error() -> None:
     """

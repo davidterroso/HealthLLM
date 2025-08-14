@@ -160,7 +160,6 @@ def iterate_tar(client: QdrantClient,
     Returns:
         None
     """
-
     processed_files = load_checkpoint()
     os.makedirs(os.path.dirname(config["checkpoints_path"]), exist_ok=True)
 

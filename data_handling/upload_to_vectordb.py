@@ -31,7 +31,6 @@ def initiate_qdrant_session(collection_name: str) -> QdrantClient:
         (QdrantClient Object): returns the initiated QdrantClient 
             Object
     """
-
     url = os.getenv("QDRANT_HOST")
     api_key = os.getenv("QDRANT_API_KEY")
 

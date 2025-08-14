@@ -73,7 +73,8 @@ def create_llm_and_embedding() -> Tuple[Union[HuggingFacePipeline, HuggingFaceEn
         vs_name = "../local_embeddings/hf_faiss_pmc"
 
         pipe = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
-        llm_instance: Union[HuggingFacePipeline, HuggingFaceEndpoint] = HuggingFacePipeline(pipeline=pipe)
+        llm_instance: Union[HuggingFacePipeline,
+                            HuggingFaceEndpoint] = HuggingFacePipeline(pipeline=pipe)
 
     elif config["local_or_api_llm"] == "api":
         embedding_func = OpenAIEmbeddings(model=config["openai_embedding_model"])
@@ -114,7 +115,6 @@ def search_by_query(query: str) -> List[Document]:
 
     return results
 
-
 def format_docs(docs: List[Document]) -> str:
     """
     Function used to format the documents it receives, by 
@@ -127,7 +127,6 @@ def format_docs(docs: List[Document]) -> str:
         str: documents formated into a single string
     """
     return "\n\n".join(doc.page_content for doc in docs)
-
 
 def answer_questions(query: str) -> str:
     """

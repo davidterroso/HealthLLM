@@ -13,9 +13,8 @@ import tarfile
 from typing import BinaryIO, Optional
 from tarfile import TarFile, TarInfo
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 from qdrant_client import QdrantClient
-from lxml import etree
 from pytest import fixture, LogCaptureFixture, MonkeyPatch
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
@@ -84,7 +83,6 @@ def test_safe_extract_member_xml_only(tmp_path) -> None:
             else:
                 assert fobj is None
 
-
 def test_safe_extract_member_directory(tmp_path) -> None:
     """
     Tests the handling other directories inside the 
@@ -105,7 +103,6 @@ def test_safe_extract_member_directory(tmp_path) -> None:
     with tarfile.open(tar_path, "r:gz") as tar:
         member = tar.getmember("somedir/")
         assert safe_extract_member(tar, member, set()) is None
-
 
 def test_safe_extract_member_symlink(tmp_path, caplog: LogCaptureFixture) -> None:
     """
@@ -133,7 +130,6 @@ def test_safe_extract_member_symlink(tmp_path, caplog: LogCaptureFixture) -> Non
         assert result is None
         assert "Skipping symbolic link" in caplog.text
 
-
 def test_safe_extract_member_already_processed(tmp_path) -> None:
     """
     Tests what happens when a file that has already 
@@ -151,7 +147,6 @@ def test_safe_extract_member_already_processed(tmp_path) -> None:
         member = tar.getmember("test.xml")
         processed_files = {"test.xml"}
         assert safe_extract_member(tar, member, processed_files) is None
-
 
 # For testing the process_xml_member function
 def create_test_xml(tmp_path):
@@ -191,7 +186,6 @@ def create_test_xml(tmp_path):
     xml_file.write_bytes(xml_content)
     return xml_file
 
-
 def test_extract_from_valid_xml(tmp_path):
     """
     Tests if the information is correctly extracted 
@@ -213,7 +207,6 @@ def test_extract_from_valid_xml(tmp_path):
     assert metadata["doi"] == "10.1234/test"
     assert metadata["pmid"] == "987654"
 
-
 def test_extract_from_binary_stream() -> None:
     """
     Tests if the information is correctly extracted 
@@ -228,7 +221,6 @@ def test_extract_from_binary_stream() -> None:
 
     assert text is not None and "Stream content" in text
     assert metadata["file"] == "stream.xml"
-
 
 def test_extract_from_malformed_xml(caplog):
     """
@@ -251,7 +243,6 @@ def test_extract_from_malformed_xml(caplog):
     assert not metadata
     assert any("XML parsing error" in message for message in caplog.messages)
 
-
 def test_extract_from_nonexistent_file(caplog):
     """
     Tests if empty files are handled gracefully
@@ -269,7 +260,6 @@ def test_extract_from_nonexistent_file(caplog):
     assert text is None
     assert not metadata
     assert any("XML parsing error" in message for message in caplog.messages)
-
 
 @patch("data_handling.get_data.embed_docs")
 @patch("data_handling.get_data.text_chunker")
@@ -309,7 +299,6 @@ def test_process_xml_member_correct_path(mock_extract: MagicMock,
                                        "test_collection")
     assert test_fileobj.closed
 
-
 def test_process_xml_member_xml_error(caplog: LogCaptureFixture):
     """
     Tests the processing of an incorrect XML file
@@ -336,7 +325,6 @@ def test_process_xml_member_xml_error(caplog: LogCaptureFixture):
     assert "XML parsing error" in caplog.text
     assert test_fileobj.closed
 
-
 def test_process_xml_member_unicode_error(caplog: LogCaptureFixture):
     """
     Tests the processing of a XML file with an 
@@ -362,7 +350,6 @@ def test_process_xml_member_unicode_error(caplog: LogCaptureFixture):
     assert "Encoding error" in caplog.text
     assert test_fileobj.closed
 
-
 def test_process_xml_member_value_error(caplog: LogCaptureFixture):
     """
     Tests the processing of a XML file with a 
@@ -387,7 +374,6 @@ def test_process_xml_member_value_error(caplog: LogCaptureFixture):
                                "collection")
     assert "Data error" in caplog.text
     assert test_fileobj.closed
-
 
 # Tests the iterate_tar function
 @fixture
@@ -417,8 +403,7 @@ def tar_fixture(tmp_path) -> str:
 
     return tar_path
 
-
-def test_iterate_tar_normal_flow(tar_fixture, monkeypatch: MonkeyPatch) -> None:
+def test_iterate_tar_normal_flow(tar_fixture, monkeypatch: MonkeyPatch) -> None: # pylint: disable=redefined-outer-name
     """
     Iterates through the tar processing producing normal results
 
@@ -449,9 +434,9 @@ def test_iterate_tar_normal_flow(tar_fixture, monkeypatch: MonkeyPatch) -> None:
         """
         mock_processed_files.update(processed_files)
 
-    def fake_safe_extract_member(tar: TarFile,
+    def fake_safe_extract_member(tar: TarFile, # pylint: disable=unused-argument
                                  member: TarInfo,
-                                 processed_files: set) -> Optional[BinaryIO]:
+                                 processed_files: set) -> Optional[BinaryIO]: # pylint: disable=unused-argument
         """
         Function created to simulate the extraction of a member from the 
         tar file
@@ -498,7 +483,7 @@ def test_iterate_tar_normal_flow(tar_fixture, monkeypatch: MonkeyPatch) -> None:
     assert any(name == "test.xml" for name, _, _ in processed)
     assert "test.xml" in mock_processed_files
 
-def test_iterate_tar_handles_value_error(tar_fixture,
+def test_iterate_tar_handles_value_error(tar_fixture, # pylint: disable=redefined-outer-name
                                          monkeypatch: MonkeyPatch,
                                          caplog: LogCaptureFixture) -> None:
     """
@@ -519,7 +504,15 @@ def test_iterate_tar_handles_value_error(tar_fixture,
                     {"checkpoints_path": str(Path(tar_fixture).parent / "checkpoint.json")})
 
     def fake_load_checkpoint() -> set:
-        """Mock load_checkpoint function."""
+        """
+        Mocks load_checkpoint function
+        
+        Args:
+            None
+
+        Returns:
+            (set): empty set
+        """
         return set()
 
     monkeypatch.setattr("data_handling.get_data.load_checkpoint", fake_load_checkpoint)

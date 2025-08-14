@@ -59,7 +59,8 @@ def test_embed_docs_empty_list(caplog: LogCaptureFixture) -> None:
     embed_docs([], client, "test_collection")
     assert "No documents provided for embedding." in caplog.text
 
-def test_embed_docs_empty_content(sample_docs: List[Document], caplog: LogCaptureFixture) -> None:
+def test_embed_docs_empty_content(sample_docs: List[Document], # pylint: disable=redefined-outer-name, unused-argument
+                                  caplog: LogCaptureFixture) -> None:
     """
     Tests the embedding function when it receives multiple empty
     documents
@@ -84,7 +85,7 @@ def test_embed_docs_empty_content(sample_docs: List[Document], caplog: LogCaptur
             embed_docs(empty_docs, client, "test_collection")
     assert "All provided documents have empty content." in caplog.text
 
-def test_embed_docs_missing_pmid_raises(sample_docs: List[Document]) -> None:
+def test_embed_docs_missing_pmid_raises(sample_docs: List[Document]) -> None: # pylint: disable=redefined-outer-name, unused-argument
     """
     Tests the embedding function when given files 
     without PMID
@@ -104,7 +105,7 @@ def test_embed_docs_missing_pmid_raises(sample_docs: List[Document]) -> None:
         with raises(KeyError, match="missing 'pmid'"):
             embed_docs(docs, client, "test_collection")
 
-def test_embed_docs_calls_upload_docs_to_qdrant(sample_docs: List[Document]) -> None:
+def test_embed_docs_calls_upload_docs_to_qdrant(sample_docs: List[Document]) -> None: # pylint: disable=redefined-outer-name, unused-argument
     """
     Tests the embedding function when calling the
     uploading functions
@@ -125,7 +126,7 @@ def test_embed_docs_calls_upload_docs_to_qdrant(sample_docs: List[Document]) -> 
 
     mock_embed_chunks.assert_called_once_with(chunks=["This is a test.", "Another chunk."])
     mock_upload.assert_called_once()
-    args, kwargs = mock_upload.call_args
+    _, kwargs = mock_upload.call_args
     assert kwargs["collection_name"] == "my_collection"
     assert kwargs["embeddings"] == mock_embeddings
     assert kwargs["base_id"] == "123"

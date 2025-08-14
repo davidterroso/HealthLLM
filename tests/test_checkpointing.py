@@ -36,7 +36,7 @@ def config_patch_fixture(monkeypatch: MonkeyPatch, tmp_path: str) -> dict:
 
 # Testing function load_checkpoint
 
-def test_load_checkpoint_file_exists(config_patch_fixture: dict) -> None:
+def test_load_checkpoint_file_exists(config_patch_fixture: dict) -> None:# pylint: disable=redefined-outer-name
     """
     Tests the loading of the existing checkpoint file
 
@@ -55,7 +55,7 @@ def test_load_checkpoint_file_exists(config_patch_fixture: dict) -> None:
     assert isinstance(result, set)
     assert result == {"file1.xml", "file2.xml"}
 
-def test_load_checkpoint_file_missing(config_patch_fixture: dict) -> None:
+def test_load_checkpoint_file_missing(config_patch_fixture: dict) -> None: # pylint: disable=redefined-outer-name
     """
     Tests the attempt of loading a checkpoint file when it 
     does not exist
@@ -75,7 +75,7 @@ def test_load_checkpoint_file_missing(config_patch_fixture: dict) -> None:
 
 # Testing function save_checkpoint
 
-def test_save_checkpoint_and_load_back(config_patch_fixture: dict) -> None:
+def test_save_checkpoint_and_load_back(config_patch_fixture: dict) -> None: # pylint: disable=redefined-outer-name
     """
     Tests the saving of a checkpoint and loading it back
 
@@ -95,7 +95,7 @@ def test_save_checkpoint_and_load_back(config_patch_fixture: dict) -> None:
     assert set(data) == files_set
     assert load_checkpoint() == files_set
 
-def test_save_checkpoint_overwrites_file(config_patch_fixture: dict) -> None:
+def test_save_checkpoint_overwrites_file(config_patch_fixture: dict) -> None: # pylint: disable=redefined-outer-name
     """
     Tests the overwritting of a checkpoint
 
