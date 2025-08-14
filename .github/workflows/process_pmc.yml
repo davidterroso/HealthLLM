@@ -25,7 +25,7 @@ jobs:
 
     - name: Extract, parse, and embed XMLs
       run: |
-        python -m scripts.process_pmc.py
+        python -m scripts.process_pmc
       env:
         QDRANT_API_KEY: ${{secrets.QDRANT_API_KEY}}
         QDRANT_HOST: ${{secrets.QDRANT_HOST}}
