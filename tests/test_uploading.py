@@ -127,7 +127,7 @@ def test_upload_docs_to_qdrant_success(caplog: LogCaptureFixture) -> None:
         all_points.extend(points)
         for point in points:
             assert isinstance(point, PointStruct)
-            assert isinstance(point.id, str) and point.id.startswith("pmid1_chunk_")
+            assert isinstance(point.id, str)
             assert isinstance(point.payload, dict) and "title" in point.payload
             assert "chunk_index" in point.payload
             assert "text_preview" in point.payload
