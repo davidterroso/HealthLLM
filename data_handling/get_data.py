@@ -101,11 +101,30 @@ def process_xml_member(fileobj: IO,
     try:
         file_content = fileobj.read()
         text, metadata = extract_from_xml(BytesIO(file_content), member_name)
-        if text is not None:
-            chunks = text_chunker(text, metadata)
-            embed_docs(chunks, client, collection_name)
+
+        doc_id = metadata.get("pmid") if metadata else None
+
+        if not doc_id:
+            logging.warning("Skipping %s: no PMID found", member_name)
+            return
+
+        existing, _ = client.scroll(
+            collection_name=collection_name,
+            scroll_filter={
+                "must": [{"key": "doc_id", "match": {"value": doc_id}}]
+            },
+            limit=1
+        )
+
+        if not existing:
+            if text is not None:
+                chunks = text_chunker(text, metadata)
+                embed_docs(chunks, client, collection_name)
+            else:
+                logging.warning("No text extracted from %s", member_name)
         else:
-            logging.warning("No text extracted from %s", member_name)
+            logging.info("Skipping embedded document.")
+
     except etree.XMLSyntaxError as e: # pylint: disable=c-extension-no-member
         logging.error("XML parsing error in %s: %s", member_name, e)
     except UnicodeDecodeError as e:

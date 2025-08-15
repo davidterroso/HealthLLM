@@ -8,7 +8,6 @@ import json
 import logging
 import uuid
 from typing import List
-from tqdm import tqdm
 from langchain.schema import Document
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
@@ -125,9 +124,7 @@ def upload_docs_to_qdrant(docs: List[Document],
                           "for doc #%d: %s", i, e, exc_info=True)
 
     if points:
-        total_batches = (len(points) + config['batch_size'] - 1) // config['batch_size']
-        for i in tqdm(range(0, len(points), config['batch_size']),
-                      total=total_batches, unit="batch", desc="Uploading batches"):
+        for i in range(0, len(points), config['batch_size']):
             batch = points[i:i + config['batch_size']]
             try:
                 client.upsert(collection_name=collection_name, points=batch)

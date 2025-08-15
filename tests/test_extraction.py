@@ -222,7 +222,7 @@ def test_extract_from_binary_stream() -> None:
     assert text is not None and "Stream content" in text
     assert metadata["file"] == "stream.xml"
 
-def test_extract_from_malformed_xml(caplog):
+def test_extract_from_malformed_xml(caplog: LogCaptureFixture) -> None:
     """
     Tests if poorly formated information is gracefully 
     handled
@@ -243,7 +243,7 @@ def test_extract_from_malformed_xml(caplog):
     assert not metadata
     assert any("XML parsing error" in message for message in caplog.messages)
 
-def test_extract_from_nonexistent_file(caplog):
+def test_extract_from_nonexistent_file(caplog: LogCaptureFixture) -> None:
     """
     Tests if empty files are handled gracefully
 
@@ -284,8 +284,9 @@ def test_process_xml_member_correct_path(mock_extract: MagicMock,
     mock_qdrant_client = MagicMock(name="QdrantClient")
     test_fileobj = io.BytesIO(b"<root><body><p>content</p></body></root>")
 
-    mock_extract.return_value = ("Some text", {"meta": "data"})
+    mock_extract.return_value = ("Some text", {"pmid": "some id"})
     mock_chunker.return_value = ["chunk1", "chunk2"]
+    mock_qdrant_client.scroll.return_value = ([], None)
 
     process_xml_member(test_fileobj,
                        "test.xml",
@@ -293,10 +294,50 @@ def test_process_xml_member_correct_path(mock_extract: MagicMock,
                        "test_collection")
 
     mock_extract.assert_called_once()
-    mock_chunker.assert_called_once_with("Some text", {"meta": "data"})
+    mock_chunker.assert_called_once_with("Some text", {"pmid": "some id"})
     mock_embed.assert_called_once_with(["chunk1", "chunk2"],
                                        mock_qdrant_client,
                                        "test_collection")
+    assert test_fileobj.closed
+
+@patch("data_handling.get_data.embed_docs")
+@patch("data_handling.get_data.text_chunker")
+@patch("data_handling.get_data.extract_from_xml")
+def test_process_xml_member_already_exists(mock_extract: MagicMock,
+                                           mock_chunker: MagicMock,
+                                           mock_embed: MagicMock,
+                                           caplog: LogCaptureFixture) -> None:
+    """
+    Tests the processing of an XML file that has 
+    already been previously iterated
+
+    Args:
+        mock_extract (MagicMock): mock function 
+            that mimics the extraction function
+        mock_chunker (MagicMock): mock function 
+            that mimics the chunking function
+        mock_embed (MagicMock): mock function 
+            that mimics the embedding function
+
+    Returns:
+        None
+    """
+    mock_qdrant_client = MagicMock(name="QdrantClient")
+    test_fileobj = io.BytesIO(b"<root><body><p>content</p></body></root>")
+
+    mock_extract.return_value = ("Some text", {"pmid": "existing_id"})
+    mock_qdrant_client.scroll.return_value = ([{"id": "existing_id"}], None)
+
+    with caplog.at_level(logging.INFO):
+        process_xml_member(test_fileobj,
+                           "test_existing.xml",
+                           mock_qdrant_client,
+                           "test_collection")
+
+    mock_extract.assert_called_once()
+    mock_chunker.assert_not_called()
+    mock_embed.assert_not_called()
+    assert "Skipping embedded document." in caplog.text
     assert test_fileobj.closed
 
 def test_process_xml_member_xml_error(caplog: LogCaptureFixture):

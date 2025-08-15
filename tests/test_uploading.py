@@ -115,8 +115,7 @@ def test_upload_docs_to_qdrant_success(caplog: LogCaptureFixture) -> None:
         [0.2] * upload_mod.config["embedding_dim"],
     ]
 
-    with patch("data_handling.upload_to_vectordb.tqdm", lambda x, **kwargs: x):
-        upload_mod.upload_docs_to_qdrant(docs, embeddings, "pmid1", client, "my_collection")
+    upload_mod.upload_docs_to_qdrant(docs, embeddings, "pmid1", client, "my_collection")
 
     assert client.upsert.called
     calls = client.upsert.call_args_list
@@ -169,8 +168,7 @@ def test_upload_docs_to_qdrant_bad_embedding_size(caplog: LogCaptureFixture) -> 
     docs = [Document(page_content="text", metadata={"title": "Title", "pmid": "pmid"})]
     embeddings = [[0.1] * (upload_mod.config["embedding_dim"] - 1)]
 
-    with patch("data_handling.upload_to_vectordb.tqdm", lambda x, **kwargs: x):
-        upload_mod.upload_docs_to_qdrant(docs, embeddings, "pmid", client, "collection")
+    upload_mod.upload_docs_to_qdrant(docs, embeddings, "pmid", client, "collection")
 
     assert "Invalid vector size" in caplog.text
     client.upsert.assert_not_called()
@@ -192,8 +190,7 @@ def test_upload_docs_to_qdrant_missing_title(caplog: LogCaptureFixture) -> None:
     docs = [Document(page_content="text", metadata={"pmid": "pmid"})]
     embeddings = [[0.1] * upload_mod.config["embedding_dim"]]
 
-    with patch("data_handling.upload_to_vectordb.tqdm", lambda x, **kwargs: x):
-        upload_mod.upload_docs_to_qdrant(docs, embeddings, "pmid", client, "collection")
+    upload_mod.upload_docs_to_qdrant(docs, embeddings, "pmid", client, "collection")
 
     assert "Missing 'title'" in caplog.text
     client.upsert.assert_not_called()
@@ -225,10 +222,9 @@ def test_upload_docs_to_qdrant_upsert_raises() -> None:
             Headers({"Content-Type": "application/json"})
         )
 
-    with patch("data_handling.upload_to_vectordb.tqdm", lambda x, **kwargs: x):
-        client.upsert.side_effect = raise_unexpected_response
-        with raises(RuntimeError, match="Qdrant upsert failed"):
-            upload_mod.upload_docs_to_qdrant(docs, embeddings, "pmid", client, "collection")
+    client.upsert.side_effect = raise_unexpected_response
+    with raises(RuntimeError, match="Qdrant upsert failed"):
+        upload_mod.upload_docs_to_qdrant(docs, embeddings, "pmid", client, "collection")
 
 def test_upload_docs_to_qdrant_connection_error() -> None:
     """
@@ -252,7 +248,6 @@ def test_upload_docs_to_qdrant_connection_error() -> None:
         """
         raise ConnectionError("Connection fail")
 
-    with patch("data_handling.upload_to_vectordb.tqdm", lambda x, **kwargs: x):
-        client.upsert.side_effect = raise_connection_error
-        with raises(ConnectionError, match="Failed to upload points"):
-            upload_mod.upload_docs_to_qdrant(docs, embeddings, "pmid", client, "collection")
+    client.upsert.side_effect = raise_connection_error
+    with raises(ConnectionError, match="Failed to upload points"):
+        upload_mod.upload_docs_to_qdrant(docs, embeddings, "pmid", client, "collection")
