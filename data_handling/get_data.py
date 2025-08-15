@@ -104,11 +104,12 @@ def process_xml_member(fileobj: IO,
         text, metadata = extract_from_xml(BytesIO(file_content), member_name)
 
         doc_id = metadata.get("pmid") if metadata else None
-        point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{doc_id}_chunk_0"))
 
         if not doc_id:
             logging.warning("Skipping %s: no PMID found", member_name)
             return
+
+        point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{doc_id}_chunk_0"))
 
         existing = client.retrieve(
             collection_name=collection_name,
@@ -183,7 +184,7 @@ def iterate_tar(client: QdrantClient,
 
     try:
         with tarfile.open(tar_file_dir, "r:gz") as tar:
-            for member in tqdm(tar, desc="Processing files", unit="file"):
+            for member in tqdm(tar, desc="Processing files", unit="file", dynamic_ncols=True):
                 try:
                     fileobj = safe_extract_member(tar=tar,
                                                   member=member,

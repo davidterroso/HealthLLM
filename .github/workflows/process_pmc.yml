@@ -3,13 +3,18 @@ name: Process PMC XML
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   process:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repo
+    - name: Checkout repository
       uses: actions/checkout@v3
+      with:
+          token: ${{secrets.GITHUB_TOKEN}}
 
     - name: Install Python and dependencies
       uses: actions/setup-python@v4
@@ -40,9 +45,8 @@ jobs:
     - name: Commit results
       if: ${{ success() }}
       run: |
-        git config user.name davidterroso
-        git config user.email davidterroso@live.com.pt
-        git pull
+        git config user.name github-actions[bot]
+        git config user.email github-actions[bot]@users.noreply.github.com
         git add checkpoints/
-        git commit -m "Processed PMC000xxxxxx"
+        git commit -m "Processed PMC000xxxxxx" || echo "No changes to commit"
         git push

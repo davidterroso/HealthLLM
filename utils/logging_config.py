@@ -3,6 +3,7 @@ File used to the define the configurations of logging
 """
 
 import logging
+import sys
 
 def setup_logging(level=logging.INFO):
     """
@@ -16,5 +17,6 @@ def setup_logging(level=logging.INFO):
     """
     logging.basicConfig(
         format="%(asctime)s [%(levelname)s] %(message)s",
-        level=level
+        level=level,
+        stream=sys.stdout
     )

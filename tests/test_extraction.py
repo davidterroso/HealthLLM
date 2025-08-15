@@ -286,7 +286,7 @@ def test_process_xml_member_correct_path(mock_extract: MagicMock,
 
     mock_extract.return_value = ("Some text", {"pmid": "some id"})
     mock_chunker.return_value = ["chunk1", "chunk2"]
-    mock_qdrant_client.scroll.return_value = ([], None)
+    mock_qdrant_client.retrieve.return_value = []
 
     process_xml_member(test_fileobj,
                        "test.xml",
