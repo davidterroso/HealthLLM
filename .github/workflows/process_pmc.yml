@@ -30,11 +30,19 @@ jobs:
         QDRANT_API_KEY: ${{secrets.QDRANT_API_KEY}}
         QDRANT_HOST: ${{secrets.QDRANT_HOST}}
 
+    - name: Upload partial checkpoints
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: pmc-checkpoints
+        path: checkpoints/
+
     - name: Commit results
+      if: ${{ success() }}
       run: |
         git config user.name davidterroso
         git config user.email davidterroso@live.com.pt
         git pull
-        git add embeddings/
+        git add checkpoints/
         git commit -m "Processed PMC000xxxxxx"
         git push
