@@ -9,6 +9,7 @@ import os
 import json
 import logging
 import tarfile
+import uuid
 from tqdm import tqdm
 from lxml import etree
 from langchain.schema import Document
@@ -103,17 +104,15 @@ def process_xml_member(fileobj: IO,
         text, metadata = extract_from_xml(BytesIO(file_content), member_name)
 
         doc_id = metadata.get("pmid") if metadata else None
+        point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{doc_id}_chunk_0"))
 
         if not doc_id:
             logging.warning("Skipping %s: no PMID found", member_name)
             return
 
-        existing, _ = client.scroll(
+        existing = client.retrieve(
             collection_name=collection_name,
-            scroll_filter={
-                "must": [{"key": "doc_id", "match": {"value": doc_id}}]
-            },
-            limit=1
+            ids=[point_id]
         )
 
         if not existing:
