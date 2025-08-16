@@ -1,3 +1,4 @@
 *.pyc
 .env
 .mypy_cache
+qdrant_storage/
