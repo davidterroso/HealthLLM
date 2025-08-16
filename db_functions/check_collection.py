@@ -28,7 +28,7 @@ def test_pmc_connection():
 
         pmc_collection = "pmc_embeddings"
         if pmc_collection in collection_names:
-            print(f"\n🎯 Found '{pmc_collection}' collection!")
+            print(f"\nFound '{pmc_collection}' collection!")
 
             info = client.get_collection(pmc_collection)
             print(f"  ├ Total documents: {info.points_count}")
