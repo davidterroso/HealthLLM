@@ -20,4 +20,7 @@ def setup_logging(level=logging.INFO):
         level=level,
         stream=sys.stdout
     )
-    logging.getLogger("qdrant_client").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("qdrant_client.http").setLevel(logging.WARNING)
+    logging.getLogger("qdrant_client.client").setLevel(logging.WARNING)
