@@ -184,7 +184,9 @@ def iterate_tar(client: QdrantClient,
 
     try:
         with tarfile.open(tar_file_dir, "r:gz") as tar:
-            for member in tqdm(tar, desc="Processing files", unit="file", dynamic_ncols=True):
+            members = tar.getmembers()
+
+            for member in tqdm(members, desc="Processing files", unit="file", dynamic_ncols=True):
                 try:
                     fileobj = safe_extract_member(tar=tar,
                                                   member=member,
