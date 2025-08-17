@@ -122,11 +122,11 @@ def upload_docs_to_qdrant(docs: List[Document],
             )
 
         except (IndexError, KeyError, ValueError, TypeError) as e:
-            logging.warning("[%s] Problem with doc #%d: %s", type(e).__name__, i, e)
+            # logging.warning("[%s] Problem with doc #%d: %s", type(e).__name__, i, e)
             tqdm.write("[WARNING] [%s] Problem with doc #%d: %s", type(e).__name__, i, e)
         except (AttributeError, RuntimeError) as e:
-            logging.error("[UnexpectedError] Failed to build point"
-                          "for doc #%d: %s", i, e, exc_info=True)
+            # logging.error("[UnexpectedError] Failed to build point"
+            #               "for doc #%d: %s", i, e, exc_info=True)
             tqdm.write("[UnexpectedError] Failed to build point" \
                           "for doc #%d: %s", i, e)
 
