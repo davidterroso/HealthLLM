@@ -1,4 +1,5 @@
 *.pyc
 .env
 .mypy_cache
+.pytest_cache
 qdrant_storage/

@@ -20,3 +20,4 @@ def setup_logging(level=logging.INFO):
         level=level,
         stream=sys.stdout
     )
+    logging.getLogger("qdrant_client").setLevel(logging.WARNING)
