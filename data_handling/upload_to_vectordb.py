@@ -8,6 +8,7 @@ import json
 import logging
 import uuid
 from typing import List
+from tqdm import tqdm
 from dotenv import load_dotenv
 from langchain.schema import Document
 from qdrant_client import QdrantClient
@@ -122,9 +123,12 @@ def upload_docs_to_qdrant(docs: List[Document],
 
         except (IndexError, KeyError, ValueError, TypeError) as e:
             logging.warning("[%s] Problem with doc #%d: %s", type(e).__name__, i, e)
+            tqdm.write("[WARNING] [%s] Problem with doc #%d: %s", type(e).__name__, i, e)
         except (AttributeError, RuntimeError) as e:
             logging.error("[UnexpectedError] Failed to build point"
                           "for doc #%d: %s", i, e, exc_info=True)
+            tqdm.write("[UnexpectedError] Failed to build point" \
+                          "for doc #%d: %s", i, e)
 
     if points:
         for i in range(0, len(points), config['batch_size']):
