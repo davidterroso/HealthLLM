@@ -38,18 +38,19 @@ def test_pmc_connection():
             print("\nSample documents:")
             points, _ = client.scroll(
                 collection_name=pmc_collection,
-                limit=3,
+                limit=10,
                 with_payload=True,
                 with_vectors=False
             )
 
             for i, point in enumerate(points):
                 payload = point.payload or {}
-                print(f"  {i+1}. ID: {str(point.id)[:20]}...")
-                print(f"     Title: {payload.get('title', 'No title')[:60]}...")
+                print(f"  {i+1}. ID: {str(point.id)}")
+                print(f"     Title: {payload.get('title', 'No title')}")
+                print(f"     PMID: {payload.get('pmid', 'No PMID')}")
                 print(f"     Chunk: {payload.get('chunk_index', 'Unknown')}")
                 if 'text_preview' in payload:
-                    print(f"     Preview: {payload['text_preview'][:80]}...")
+                    print(f"     Preview: {payload['text_preview']}")
                 print()
         else:
             print(f"Collection '{pmc_collection}' not found!")

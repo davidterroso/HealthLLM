@@ -8,10 +8,13 @@ import json
 import logging
 import uuid
 from typing import List
+from dotenv import load_dotenv
 from langchain.schema import Document
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
 from qdrant_client.http.exceptions import UnexpectedResponse
+
+load_dotenv()
 
 config_path = os.path.join(os.path.dirname(__file__),
                            '..', 'data_handling', 'config.json')
