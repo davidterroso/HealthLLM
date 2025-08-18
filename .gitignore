@@ -3,3 +3,4 @@
 .mypy_cache
 .pytest_cache
 qdrant_storage/
+*.tar.gz

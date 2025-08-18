@@ -7,7 +7,6 @@ from typing import BinaryIO, Dict, IO, List, Optional, Tuple, Union
 from io import BytesIO
 import os
 import json
-import logging
 import tarfile
 import uuid
 from tqdm import tqdm
@@ -17,7 +16,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from qdrant_client import QdrantClient
 from data_handling.embedding_functions import embed_docs
 from data_handling.upload_to_vectordb import initiate_qdrant_session
-from utils.logging_config import setup_logging
+from utils.logging_config import setup_logging, TqdmLogger as log
 from utils.get_embeddings_dims import get_embeddings_dims
 
 config_path = os.path.join(os.path.dirname(__file__),
@@ -41,11 +40,11 @@ def data_pipeline(collection_name: str, tar_file_dir: str) -> None:
         None
     """
     setup_logging()
-    logging.info("Getting embeddings dimensions.")
+    log.info("Getting embeddings dimensions.")
     get_embeddings_dims()
-    logging.info("Initiating Qdrant session.")
+    log.info("Initiating Qdrant session.")
     client = initiate_qdrant_session(collection_name=collection_name)
-    logging.info("Initiating extraction.")
+    log.info("Initiating extraction.")
     iterate_tar(client=client,
                 collection_name=collection_name,
                 tar_file_dir=tar_file_dir)
@@ -73,7 +72,7 @@ def safe_extract_member(tar: tarfile.TarFile, member: tarfile.TarInfo,
         return None
 
     if member.issym() or member.islnk():
-        logging.warning("Skipping symbolic link in tar: %s", member.name)
+        log.warning(str("Skipping symbolic link in tar: %s", member.name))
         return None
 
     if member.name in processed_files:
@@ -100,13 +99,14 @@ def process_xml_member(fileobj: IO,
         None
     """
     try:
+        log.info("worked")
         file_content = fileobj.read()
         text, metadata = extract_from_xml(BytesIO(file_content), member_name)
 
         doc_id = metadata.get("pmid") if metadata else None
 
         if not doc_id:
-            logging.warning("Skipping %s: no PMID found", member_name)
+            log.warning(str("Skipping %s: no PMID found", member_name))
             return
 
         point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{doc_id}_chunk_0"))
@@ -121,16 +121,16 @@ def process_xml_member(fileobj: IO,
                 chunks = text_chunker(text, metadata)
                 embed_docs(chunks, client, collection_name)
             else:
-                logging.warning("No text extracted from %s", member_name)
+                log.warning(str("No text extracted from %s", member_name))
         else:
-            logging.info("Skipping embedded document.")
+            log.info("Skipping embedded document.")
 
     except etree.XMLSyntaxError as e: # pylint: disable=c-extension-no-member
-        logging.error("XML parsing error in %s: %s", member_name, e)
+        log.error(str("XML parsing error in %s: %s", member_name, e))
     except UnicodeDecodeError as e:
-        logging.error("Encoding error in %s: %s", member_name, e)
+        log.error(str("Encoding error in %s: %s", member_name, e))
     except ValueError as e:
-        logging.error("Data error in %s: %s", member_name, e)
+        log.error(str("Data error in %s: %s", member_name, e))
     finally:
         fileobj.close()
 
@@ -186,13 +186,13 @@ def iterate_tar(client: QdrantClient,
         with tarfile.open(tar_file_dir, "r:gz") as tar:
             members = tar.getmembers()
 
-            for member in tqdm(members, desc="Processing files", unit="file", dynamic_ncols=True):
+            for member in tqdm(members, desc="Processing files", unit="file"):
                 try:
                     fileobj = safe_extract_member(tar=tar,
                                                   member=member,
                                                   processed_files=processed_files)
                 except ValueError as e:
-                    logging.error(e)
+                    log.error(e)
                     continue
 
                 if fileobj:
@@ -205,7 +205,7 @@ def iterate_tar(client: QdrantClient,
 
     except (FileNotFoundError, PermissionError, EOFError,
             tarfile.ReadError, tarfile.TarError, OSError) as e:
-        logging.error("Extraction failed: %s", e)
+        log.error(str("Extraction failed: %s", e))
 
 def extract_from_xml(xml_source: Union[str, BinaryIO],
                      file_name: str) -> Tuple[Optional[str], Dict[str, Optional[str]]]:
@@ -246,7 +246,7 @@ def extract_from_xml(xml_source: Union[str, BinaryIO],
         return text, metadata
 
     except (etree.XMLSyntaxError, OSError, IOError, PermissionError) as e: # pylint: disable=c-extension-no-member
-        logging.error("XML parsing error in %s: %s - %s", xml_source, type(e).__name__, e)
+        log.error(str("XML parsing error in %s: %s - %s", xml_source, type(e).__name__, e))
         return None, {}
 
 def text_chunker(full_text: str, metadata: Optional[dict] = None) -> List[Document]:

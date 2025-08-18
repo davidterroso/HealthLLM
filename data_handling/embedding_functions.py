@@ -5,12 +5,12 @@ the preferences selected in the config.json file
 
 import os
 import json
-import logging
 from typing import List
 from langchain.schema import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 from qdrant_client import QdrantClient
 from data_handling.upload_to_vectordb import upload_docs_to_qdrant
+from utils.logging_config import TqdmLogger as log
 
 config_path = os.path.join(os.path.dirname(__file__),
                            '..', 'data_handling', 'config.json')
@@ -39,13 +39,13 @@ def embed_docs(docs: List[Document],
         None
     """
     if not docs:
-        logging.warning("No documents provided for embedding.")
+        log.warning("No documents provided for embedding.")
         return
 
     chunks = [doc.page_content.strip() for doc in docs if doc.page_content.strip()]
 
     if not chunks:
-        logging.warning("All provided documents have empty content.")
+        log.warning("All provided documents have empty content.")
 
 
     embeddings = embed_chunks(chunks=chunks)
@@ -75,7 +75,7 @@ def embed_chunks(chunks: List[str]) -> List[List[float]]:
     try:
         vectors = embedding_function.embed_documents(chunks)
     except Exception as e:
-        logging.error("Batch embedding failed: %s", e, exc_info=True)
+        log.error(str("Batch embedding failed: %s", e))
         raise
 
     for i, vector in enumerate(vectors):
