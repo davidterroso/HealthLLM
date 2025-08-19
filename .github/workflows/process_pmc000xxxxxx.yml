@@ -1,4 +1,4 @@
-name: Process PMC XML
+name: Process PMC000xxxxxx XML
 
 on:
   workflow_dispatch:

@@ -1,0 +1,52 @@
+name: Process PMC001xxxxxx XML
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+          token: ${{secrets.GITHUB_TOKEN}}
+
+    - name: Install Python and dependencies
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13.5'
+    - run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Download PMC .tar.gz
+      run: |
+        wget https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.PMC001xxxxxx.baseline.2025-06-26.tar.gz -O data.tar.gz
+
+    - name: Extract, parse, and embed XMLs
+      run: |
+        python -m scripts.process_pmc
+      env:
+        QDRANT_API_KEY: ${{secrets.QDRANT_API_KEY}}
+        QDRANT_HOST: ${{secrets.QDRANT_HOST}}
+
+    - name: Upload partial checkpoints
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: pmc-checkpoints
+        path: checkpoints/
+
+    - name: Commit results
+      if: ${{ success() }}
+      run: |
+        git config user.name github-actions[bot]
+        git config user.email github-actions[bot]@users.noreply.github.com
+        git add checkpoints/
+        git commit -m "Processed PMC001xxxxxx" || echo "No changes to commit"
+        git push
