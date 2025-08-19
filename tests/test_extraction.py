@@ -123,12 +123,12 @@ def test_safe_extract_member_symlink(tmp_path, caplog: LogCaptureFixture) -> Non
         link_info.type = tarfile.SYMTYPE
         tar.addfile(link_info)
 
-    caplog.set_level(logging.WARNING)
+    caplogging.set_level(logging.WARNING)
     with tarfile.open(tar_path, "r:gz") as tar:
         member = tar.getmember("link.xml")
         result = safe_extract_member(tar, member, set())
         assert result is None
-        assert "Skipping symbolic link" in caplog.text
+        assert "Skipping symbolic link" in caplogging.text
 
 def test_safe_extract_member_already_processed(tmp_path) -> None:
     """
@@ -236,12 +236,12 @@ def test_extract_from_malformed_xml(caplog: LogCaptureFixture) -> None:
     """
     bad_xml_stream = io.BytesIO(b"<root><body><p>Missing closing tags")
 
-    with caplog.at_level(logging.ERROR):
+    with caplogging.at_level(logging.ERROR):
         text, metadata = extract_from_xml(bad_xml_stream, "bad.xml")
 
     assert text is None
     assert not metadata
-    assert any("XML parsing error" in message for message in caplog.messages)
+    assert any("XML parsing error" in message for message in caplogging.messages)
 
 def test_extract_from_nonexistent_file(caplog: LogCaptureFixture) -> None:
     """
@@ -254,12 +254,12 @@ def test_extract_from_nonexistent_file(caplog: LogCaptureFixture) -> None:
     Returns:
         None
     """
-    with caplog.at_level(logging.ERROR):
+    with caplogging.at_level(logging.ERROR):
         text, metadata = extract_from_xml("nonexistent.xml", "nonexistent.xml")
 
     assert text is None
     assert not metadata
-    assert any("XML parsing error" in message for message in caplog.messages)
+    assert any("XML parsing error" in message for message in caplogging.messages)
 
 @patch("data_handling.get_data.embed_docs")
 @patch("data_handling.get_data.text_chunker")
@@ -328,7 +328,7 @@ def test_process_xml_member_already_exists(mock_extract: MagicMock,
     mock_extract.return_value = ("Some text", {"pmid": "existing_id"})
     mock_qdrant_client.scroll.return_value = ([{"id": "existing_id"}], None)
 
-    with caplog.at_level(logging.INFO):
+    with caplogging.at_level(logging.INFO):
         process_xml_member(test_fileobj,
                            "test_existing.xml",
                            mock_qdrant_client,
@@ -337,7 +337,7 @@ def test_process_xml_member_already_exists(mock_extract: MagicMock,
     mock_extract.assert_called_once()
     mock_chunker.assert_not_called()
     mock_embed.assert_not_called()
-    assert "Skipping embedded document." in caplog.text
+    assert "Skipping embedded document." in caplogging.text
     assert test_fileobj.closed
 
 def test_process_xml_member_xml_error(caplog: LogCaptureFixture):
@@ -358,12 +358,12 @@ def test_process_xml_member_xml_error(caplog: LogCaptureFixture):
             "data_handling.get_data.extract_from_xml",
             side_effect=ValueError("XML parsing error")
         ):
-        with caplog.at_level(logging.ERROR):
+        with caplogging.at_level(logging.ERROR):
             process_xml_member(test_fileobj,
                                "bad.xml",
                                mock_qdrant_client,
                                "collection")
-    assert "XML parsing error" in caplog.text
+    assert "XML parsing error" in caplogging.text
     assert test_fileobj.closed
 
 def test_process_xml_member_unicode_error(caplog: LogCaptureFixture):
@@ -383,12 +383,12 @@ def test_process_xml_member_unicode_error(caplog: LogCaptureFixture):
 
     with patch("data_handling.get_data.extract_from_xml",
                side_effect=UnicodeDecodeError("utf-8", b"", 0, 1, "reason")):
-        with caplog.at_level(logging.ERROR):
+        with caplogging.at_level(logging.ERROR):
             process_xml_member(test_fileobj,
                                "bad_encoding.xml",
                                mock_qdrant_client,
                                "collection")
-    assert "Encoding error" in caplog.text
+    assert "Encoding error" in caplogging.text
     assert test_fileobj.closed
 
 def test_process_xml_member_value_error(caplog: LogCaptureFixture):
@@ -408,12 +408,12 @@ def test_process_xml_member_value_error(caplog: LogCaptureFixture):
 
     with patch("data_handling.get_data.extract_from_xml",
                side_effect=ValueError("Bad data")):
-        with caplog.at_level(logging.ERROR):
+        with caplogging.at_level(logging.ERROR):
             process_xml_member(test_fileobj,
                                "bad_data.xml",
                                mock_qdrant_client,
                                "collection")
-    assert "Data error" in caplog.text
+    assert "Data error" in caplogging.text
     assert test_fileobj.closed
 
 # Tests the iterate_tar function
@@ -578,10 +578,10 @@ def test_iterate_tar_handles_value_error(tar_fixture, # pylint: disable=redefine
 
     monkeypatch.setattr("data_handling.get_data.safe_extract_member", safe_extract_side_effect)
 
-    with caplog.at_level(logging.ERROR):
+    with caplogging.at_level(logging.ERROR):
         iterate_tar(mock_client, "collection", str(tar_fixture))
 
-    assert "Bad file" in caplog.text
+    assert "Bad file" in caplogging.text
 
 def test_iterate_tar_handles_tarfile_open_errors(monkeypatch: MonkeyPatch,
                                                  caplog: LogCaptureFixture) -> None:
@@ -601,7 +601,7 @@ def test_iterate_tar_handles_tarfile_open_errors(monkeypatch: MonkeyPatch,
     monkeypatch.setattr("data_handling.get_data.config",
                         {"checkpoints_path": "/tmp/checkpoint.json"})
 
-    with caplog.at_level(logging.ERROR):
+    with caplogging.at_level(logging.ERROR):
         iterate_tar(mock_client, "collection", "/non/existent/file.tar.gz")
 
-    assert "Extraction failed" in caplog.text
+    assert "Extraction failed" in caplogging.text

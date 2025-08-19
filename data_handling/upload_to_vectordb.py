@@ -6,13 +6,13 @@ is hosted in the cloud
 import os
 import json
 import uuid
+import logging
 from typing import List
 from dotenv import load_dotenv
 from langchain.schema import Document
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
 from qdrant_client.http.exceptions import UnexpectedResponse
-from utils.logging_config import TqdmLogger as log
 
 load_dotenv()
 
@@ -121,9 +121,9 @@ def upload_docs_to_qdrant(docs: List[Document],
             )
 
         except (IndexError, KeyError, ValueError, TypeError) as e:
-            log.warning(str("[%s] Problem with doc #%d: %s", type(e).__name__, i, e))
+            logging.warning(str("[%s] Problem with doc #%d: %s", type(e).__name__, i, e))
         except (AttributeError, RuntimeError) as e:
-            log.error(str("[UnexpectedError] Failed to build point"
+            logging.error(str("[UnexpectedError] Failed to build point"
                           "for doc #%d: %s", i, e))
 
     if points:
@@ -136,4 +136,4 @@ def upload_docs_to_qdrant(docs: List[Document],
             except Exception as e:
                 raise ConnectionError(f"Failed to upload points to Qdrant: {e}") from e
     else:
-        log.info("No valid points to upload.")
+        logging.info("No valid points to upload.")
