@@ -75,7 +75,7 @@ def embed_chunks(chunks: List[str]) -> List[List[float]]:
     try:
         vectors = embedding_function.embed_documents(chunks)
     except Exception as e:
-        logging.error(str("Batch embedding failed: %s", e))
+        logging.error("Batch embedding failed: %s", e)
         raise
 
     for i, vector in enumerate(vectors):

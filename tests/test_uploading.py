@@ -104,7 +104,7 @@ def test_upload_docs_to_qdrant_success(caplog: LogCaptureFixture) -> None:
     Returns:
         None
     """
-    caplogging.set_level(logging.WARNING)
+    caplog.set_level(logging.WARNING)
     client = MagicMock()
     docs = [
         Document(page_content="chunk1 text", metadata={"title": "Title1", "pmid": "pmid1"}),
@@ -163,14 +163,14 @@ def test_upload_docs_to_qdrant_bad_embedding_size(caplog: LogCaptureFixture) -> 
     Returns:
         None
     """
-    caplogging.set_level(logging.WARNING)
+    caplog.set_level(logging.WARNING)
     client = MagicMock()
     docs = [Document(page_content="text", metadata={"title": "Title", "pmid": "pmid"})]
     embeddings = [[0.1] * (upload_mod.config["embedding_dim"] - 1)]
 
     upload_mod.upload_docs_to_qdrant(docs, embeddings, "pmid", client, "collection")
 
-    assert "Invalid vector size" in caplogging.text
+    assert "Invalid vector size" in caplog.text
     client.upsert.assert_not_called()
 
 def test_upload_docs_to_qdrant_missing_title(caplog: LogCaptureFixture) -> None:
@@ -185,14 +185,14 @@ def test_upload_docs_to_qdrant_missing_title(caplog: LogCaptureFixture) -> None:
     Returns:
         None
     """
-    caplogging.set_level(logging.WARNING)
+    caplog.set_level(logging.WARNING)
     client = MagicMock()
     docs = [Document(page_content="text", metadata={"pmid": "pmid"})]
     embeddings = [[0.1] * upload_mod.config["embedding_dim"]]
 
     upload_mod.upload_docs_to_qdrant(docs, embeddings, "pmid", client, "collection")
 
-    assert "Missing 'title'" in caplogging.text
+    assert "Missing 'title'" in caplog.text
     client.upsert.assert_not_called()
 
 def test_upload_docs_to_qdrant_upsert_raises() -> None:

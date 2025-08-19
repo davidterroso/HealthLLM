@@ -53,11 +53,11 @@ def test_embed_docs_empty_list(caplog: LogCaptureFixture) -> None:
     Returns:
         None
     """
-    caplogging.set_level(logging.WARNING)
+    caplog.set_level(logging.WARNING)
     client = MagicMock()
 
     embed_docs([], client, "test_collection")
-    assert "No documents provided for embedding." in caplogging.text
+    assert "No documents provided for embedding." in caplog.text
 
 def test_embed_docs_empty_content(sample_docs: List[Document], # pylint: disable=redefined-outer-name, unused-argument
                                   caplog: LogCaptureFixture) -> None:
@@ -73,7 +73,7 @@ def test_embed_docs_empty_content(sample_docs: List[Document], # pylint: disable
     Returns:
         None
     """
-    caplogging.set_level(logging.WARNING)
+    caplog.set_level(logging.WARNING)
     empty_docs = [
         Document(page_content="   ", metadata={"pmid": "123"}),
         Document(page_content="", metadata={"pmid": "123"})
@@ -83,7 +83,7 @@ def test_embed_docs_empty_content(sample_docs: List[Document], # pylint: disable
     with patch("data_handling.embedding_functions.embed_chunks", return_value=[[0.1, 0.2]]):
         with patch("data_handling.upload_to_vectordb.upload_docs_to_qdrant"):
             embed_docs(empty_docs, client, "test_collection")
-    assert "All provided documents have empty content." in caplogging.text
+    assert "All provided documents have empty content." in caplog.text
 
 def test_embed_docs_missing_pmid_raises(sample_docs: List[Document]) -> None: # pylint: disable=redefined-outer-name, unused-argument
     """
@@ -201,8 +201,8 @@ def test_embed_chunks_logs_and_raises_on_error(monkeypatch: MonkeyPatch,
     monkeypatch.setattr(emb_func_module,
                         "embedding_function",
                         MagicMock(embed_documents=raise_error))
-    caplogging.set_level(logging.ERROR)
+    caplog.set_level(logging.ERROR)
 
     with raises(RuntimeError):
         embed_chunks(["text"])
-    assert "Batch embedding failed" in caplogging.text
+    assert "Batch embedding failed" in caplog.text

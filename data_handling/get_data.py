@@ -72,7 +72,7 @@ def safe_extract_member(tar: tarfile.TarFile, member: tarfile.TarInfo,
         return None
 
     if member.issym() or member.islnk():
-        logging.warning(str("Skipping symbolic link in tar: %s", member.name))
+        logging.warning("Skipping symbolic link in tar: %s", member.name)
         return None
 
     if member.name in processed_files:
@@ -106,7 +106,7 @@ def process_xml_member(fileobj: IO,
         doc_id = metadata.get("pmid") if metadata else None
 
         if not doc_id:
-            logging.warning(str("Skipping %s: no PMID found", member_name))
+            logging.warning("Skipping %s: no PMID found", member_name)
             return
 
         point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{doc_id}_chunk_0"))
@@ -121,16 +121,16 @@ def process_xml_member(fileobj: IO,
                 chunks = text_chunker(text, metadata)
                 embed_docs(chunks, client, collection_name)
             else:
-                logging.warning(str("No text extracted from %s", member_name))
+                logging.warning("No text extracted from %s", member_name)
         else:
             logging.info("Skipping embedded document.")
 
     except etree.XMLSyntaxError as e: # pylint: disable=c-extension-no-member
-        logging.error(str("XML parsing error in %s: %s", member_name, e))
+        logging.error("XML parsing error in %s: %s", member_name, e)
     except UnicodeDecodeError as e:
-        logging.error(str("Encoding error in %s: %s", member_name, e))
+        logging.error("Encoding error in %s: %s", member_name, e)
     except ValueError as e:
-        logging.error(str("Data error in %s: %s", member_name, e))
+        logging.error("Data error in %s: %s", member_name, e)
     finally:
         fileobj.close()
 
@@ -205,7 +205,7 @@ def iterate_tar(client: QdrantClient,
 
     except (FileNotFoundError, PermissionError, EOFError,
             tarfile.ReadError, tarfile.TarError, OSError) as e:
-        logging.error(str("Extraction failed: %s", e))
+        logging.error("Extraction failed: %s", e)
 
 def extract_from_xml(xml_source: Union[str, BinaryIO],
                      file_name: str) -> Tuple[Optional[str], Dict[str, Optional[str]]]:
@@ -246,7 +246,7 @@ def extract_from_xml(xml_source: Union[str, BinaryIO],
         return text, metadata
 
     except (etree.XMLSyntaxError, OSError, IOError, PermissionError) as e: # pylint: disable=c-extension-no-member
-        logging.error(str("XML parsing error in %s: %s - %s", xml_source, type(e).__name__, e))
+        logging.error("XML parsing error in %s: %s - %s", xml_source, type(e).__name__, e)
         return None, {}
 
 def text_chunker(full_text: str, metadata: Optional[dict] = None) -> List[Document]:
