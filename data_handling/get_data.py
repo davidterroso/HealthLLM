@@ -99,7 +99,6 @@ def process_xml_member(fileobj: IO,
         None
     """
     try:
-        logging.info("worked")
         file_content = fileobj.read()
         text, metadata = extract_from_xml(BytesIO(file_content), member_name)
 
@@ -202,6 +201,8 @@ def iterate_tar(client: QdrantClient,
                                        collection_name=collection_name)
                     processed_files.add(member.name)
                     save_checkpoint(processed_files=processed_files)
+                else:
+                    logging.info("Skipping embedded document: %s", member.name)
 
     except (FileNotFoundError, PermissionError, EOFError,
             tarfile.ReadError, tarfile.TarError, OSError) as e:
