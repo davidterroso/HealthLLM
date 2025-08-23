@@ -4,7 +4,6 @@ is hosted in the cloud
 """
 
 import os
-import json
 import uuid
 import logging
 from typing import List
@@ -13,14 +12,10 @@ from langchain.schema import Document
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
 from qdrant_client.http.exceptions import UnexpectedResponse
+from utils.load_config import load_config
 
 load_dotenv()
-
-config_path = os.path.join(os.path.dirname(__file__),
-                           '..', 'data_handling', 'config.json')
-
-with open(os.path.abspath(config_path), "r", encoding="utf-8") as f:
-    config = json.load(f)
+config = load_config()
 
 def initiate_qdrant_session(collection_name: str) -> QdrantClient:
     """
@@ -95,20 +90,21 @@ def upload_docs_to_qdrant(docs: List[Document],
     points = []
 
     for i, doc in enumerate(docs):
+        payload = None
         try:
             embedding = embeddings[i]
             if len(embedding) != config['embedding_dim']:
                 raise ValueError(f"Invalid vector size: expected \
                                  {config['embedding_dim']}, got {len(embedding)}")
 
-            payload={
+            payload = {
                 **doc.metadata,
                 "chunk_index": i,
-                "text_preview": doc.page_content[:300]
+                "text": doc.page_content
             }
 
             if not payload.get('title'):
-                raise KeyError(f"Missing 'title' in metadata for doc #{i}")
+                raise KeyError(f"Missing 'title' in metadata for chunk #{i}")
 
             point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{base_id}_chunk_{i}"))
 
@@ -121,7 +117,13 @@ def upload_docs_to_qdrant(docs: List[Document],
             )
 
         except (IndexError, KeyError, ValueError, TypeError) as e:
-            logging.warning("[%s] Problem with doc #%d: %s", type(e).__name__, i, e)
+            file_val = None
+            if payload is not None:
+                file_val = payload.get("file")
+            elif hasattr(doc, "metadata"):
+                file_val = doc.metadata.get("file")
+            logging.warning("[%s] Problem with chunk #%d from document %s: %s",
+                            type(e).__name__, i, file_val, e)
         except (AttributeError, RuntimeError) as e:
             logging.error("[UnexpectedError] Failed to build point"
                           "for doc #%d: %s", i, e)

@@ -49,8 +49,8 @@ def test_pmc_connection():
                 print(f"     Title: {payload.get('title', 'No title')}")
                 print(f"     PMID: {payload.get('pmid', 'No PMID')}")
                 print(f"     Chunk: {payload.get('chunk_index', 'Unknown')}")
-                if 'text_preview' in payload:
-                    print(f"     Preview: {payload['text_preview']}")
+                if 'text' in payload:
+                    print(f"     Preview: {payload['text']}")
                 print()
         else:
             print(f"Collection '{pmc_collection}' not found!")

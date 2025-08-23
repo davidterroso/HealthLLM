@@ -18,12 +18,9 @@ from data_handling.embedding_functions import embed_docs
 from data_handling.upload_to_vectordb import initiate_qdrant_session
 from utils.get_embeddings_dims import get_embeddings_dims
 from utils.logging_config import setup_logging
+from utils.load_config import load_config
 
-config_path = os.path.join(os.path.dirname(__file__),
-                           '..', 'data_handling', 'config.json')
-
-with open(os.path.abspath(config_path), "r", encoding="utf-8") as f:
-    config = json.load(f)
+config = load_config()
 
 def data_pipeline(collection_name: str, tar_file_dir: str) -> None:
     """
@@ -39,7 +36,7 @@ def data_pipeline(collection_name: str, tar_file_dir: str) -> None:
     Returns:
         None
     """
-    setup_logging()
+    setup_logging(level_str=config.get("logging_level", "info"))
     logging.info("Getting embeddings dimensions.")
     get_embeddings_dims()
     logging.info("Initiating Qdrant session.")

@@ -3,20 +3,15 @@ This file is used in the embedding of strings using
 the preferences selected in the config.json file
 """
 
-import os
-import json
 import logging
 from typing import List
 from langchain.schema import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 from qdrant_client import QdrantClient
 from data_handling.upload_to_vectordb import upload_docs_to_qdrant
+from utils.load_config import load_config
 
-config_path = os.path.join(os.path.dirname(__file__),
-                           '..', 'data_handling', 'config.json')
-
-with open(os.path.abspath(config_path), "r", encoding="utf-8") as f:
-    config = json.load(f)
+config = load_config()
 
 embedding_function = HuggingFaceEmbeddings(
     model_name=config["hf_embedding_model"]

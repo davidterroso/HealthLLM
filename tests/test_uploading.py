@@ -9,7 +9,6 @@ from pytest import raises, MonkeyPatch, LogCaptureFixture
 from langchain.schema import Document
 from qdrant_client.http.models import VectorParams, Distance, PointStruct
 from qdrant_client.http.exceptions import UnexpectedResponse
-
 import data_handling.upload_to_vectordb as upload_mod
 
 upload_mod.config = {
@@ -129,7 +128,7 @@ def test_upload_docs_to_qdrant_success(caplog: LogCaptureFixture) -> None:
             assert isinstance(point.id, str)
             assert isinstance(point.payload, dict) and "title" in point.payload
             assert "chunk_index" in point.payload
-            assert "text_preview" in point.payload
+            assert "text" in point.payload
     assert len(all_points) == len(docs)
 
 def test_upload_docs_to_qdrant_missing_embedding_dim() -> None:
@@ -165,7 +164,9 @@ def test_upload_docs_to_qdrant_bad_embedding_size(caplog: LogCaptureFixture) -> 
     """
     caplog.set_level(logging.WARNING)
     client = MagicMock()
-    docs = [Document(page_content="text", metadata={"title": "Title", "pmid": "pmid"})]
+    docs = [Document(page_content="text", metadata={"title": "Title",
+                                                    "pmid": "pmid",
+                                                    "file": "PMCXXX"})]
     embeddings = [[0.1] * (upload_mod.config["embedding_dim"] - 1)]
 
     upload_mod.upload_docs_to_qdrant(docs, embeddings, "pmid", client, "collection")
@@ -187,7 +188,7 @@ def test_upload_docs_to_qdrant_missing_title(caplog: LogCaptureFixture) -> None:
     """
     caplog.set_level(logging.WARNING)
     client = MagicMock()
-    docs = [Document(page_content="text", metadata={"pmid": "pmid"})]
+    docs = [Document(page_content="text", metadata={"pmid": "pmid", "file": "PMCXXX"})]
     embeddings = [[0.1] * upload_mod.config["embedding_dim"]]
 
     upload_mod.upload_docs_to_qdrant(docs, embeddings, "pmid", client, "collection")
@@ -204,7 +205,9 @@ def test_upload_docs_to_qdrant_upsert_raises() -> None:
         None
     """
     client = MagicMock()
-    docs = [Document(page_content="text", metadata={"title": "Title", "pmid": "pmid"})]
+    docs = [Document(page_content="text", metadata={"title": "Title",
+                                                    "pmid": "pmid",
+                                                    "file": "PMCXXX"})]
     embeddings = [[0.1] * upload_mod.config["embedding_dim"]]
 
     def raise_unexpected_response(*_args, **_kwargs) -> None:
@@ -236,7 +239,9 @@ def test_upload_docs_to_qdrant_connection_error() -> None:
         None
     """
     client = MagicMock()
-    docs = [Document(page_content="text", metadata={"title": "Title", "pmid": "pmid"})]
+    docs = [Document(page_content="text", metadata={"title": "Title",
+                                                    "pmid": "pmid",
+                                                    "file": "PMCXXX"})]
     embeddings = [[0.1] * upload_mod.config["embedding_dim"]]
 
     def raise_connection_error(*_args, **_kwargs) -> None:

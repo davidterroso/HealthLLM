@@ -4,8 +4,6 @@ contained in the tar file and the functions that iterate
 the tar folder
 """
 
-import os
-import json
 import sys
 import logging
 import io
@@ -26,12 +24,9 @@ from data_handling.get_data import (
     process_xml_member,
     iterate_tar
 )
+from utils.load_config import load_config
 
-config_path = os.path.join(os.path.dirname(__file__),
-                           '..', 'data_handling', 'config.json')
-
-with open(os.path.abspath(config_path), "r", encoding="utf-8") as f:
-    config = json.load(f)
+config = load_config()
 
 # For testing the safe_extract_member function
 def create_test_tar(tmp_path) -> str:

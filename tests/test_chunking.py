@@ -2,8 +2,6 @@
 Tests the chunking functions during data extraction
 """
 
-import json
-import os
 import sys
 from pathlib import Path
 from langchain.schema import Document
@@ -13,12 +11,9 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 # pylint: disable=wrong-import-position
 from data_handling.get_data import text_chunker
+from utils.load_config import load_config
 
-config_path = os.path.join(os.path.dirname(__file__),
-                           '..', 'data_handling', 'config.json')
-
-with open(os.path.abspath(config_path), "r", encoding="utf-8") as f:
-    config = json.load(f)
+config = load_config()
 
 def test_text_chunker_basic(monkeypatch: MonkeyPatch) -> None:
     """

@@ -5,7 +5,6 @@ in the VectorDB
 THIS FILE IS OUTDATED AND CORRESPONDS TO AN OLDER VERSION OF THE CODE
 """
 
-import json
 import os
 from typing import List, Union, Tuple
 from dotenv import load_dotenv
@@ -18,12 +17,12 @@ from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough, Runnable
 from transformers import pipeline, AutoModelForSeq2SeqLM, AutoTokenizer
+from utils.load_config import load_config
 
 load_dotenv()
 hf_api_key = os.getenv("HUGGINGFACEHUB_API_TOKEN")
 
-with open("config.json", "r", encoding="utf-8") as f:
-    config = json.load(f)
+config = load_config()
 
 def create_embedding_function() -> Tuple[Union[HuggingFaceEmbeddings, OpenAIEmbeddings], str]:
     """

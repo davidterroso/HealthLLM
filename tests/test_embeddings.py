@@ -2,8 +2,6 @@
 Tests the functions behind the embeddings of the text
 """
 
-import os
-import json
 import sys
 import logging
 from typing import List
@@ -17,12 +15,9 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 # pylint: disable=wrong-import-position
 import data_handling.embedding_functions as emb_func_module
 from data_handling.embedding_functions import embed_chunks, embed_docs
+from utils.load_config import load_config
 
-config_path = os.path.join(os.path.dirname(__file__),
-                           '..', 'data_handling', 'config.json')
-
-with open(os.path.abspath(config_path), "r", encoding="utf-8") as f:
-    config = json.load(f)
+config = load_config()
 
 @fixture
 def sample_docs() -> List[Document]:
@@ -75,8 +70,8 @@ def test_embed_docs_empty_content(sample_docs: List[Document], # pylint: disable
     """
     caplog.set_level(logging.WARNING)
     empty_docs = [
-        Document(page_content="   ", metadata={"pmid": "123"}),
-        Document(page_content="", metadata={"pmid": "123"})
+        Document(page_content="   ", metadata={"pmid": "123", "file": "PMCXXX"}),
+        Document(page_content="", metadata={"pmid": "123", "file": "PMCXXX"})
     ]
     client = MagicMock()
 

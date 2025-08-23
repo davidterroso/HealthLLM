@@ -2,23 +2,21 @@
 File used in the testing of the functions that are in the utils folder
 """
 
-import os
 import json
 import sys
+import logging
 from unittest.mock import patch, mock_open
 from pathlib import Path
 import pytest
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-config_path = os.path.join(os.path.dirname(__file__),
-                           '..', 'data_handling', 'config.json')
-
-with open(os.path.abspath(config_path), "r", encoding="utf-8") as f:
-    config = json.load(f)
-
 # pylint: disable=wrong-import-position
 from utils.get_embeddings_dims import get_embeddings_dims
+from utils.logging_config import setup_logging
+from utils.load_config import load_config
+
+config = load_config()
 
 def test_get_embeddings_dims_success() -> None:
     """
@@ -71,3 +69,35 @@ def test_get_embeddings_dims_raises_without_model() -> None:
     with patch("builtins.open", m_open), patch("json.load", return_value=mock_config):
         with pytest.raises(ValueError, match="No 'hf_embedding_model' found"):
             get_embeddings_dims()
+
+def test_setup_logging_invalid_level() -> None:
+    """
+    Tests what happens when the passed value is not 
+    a key for the dictionary that converts the given 
+    string into a logging.level
+
+    Args:
+        None
+    
+    Returns:
+        None
+    """
+    with pytest.raises(KeyError):
+        setup_logging(level_str="nonexistent_level")
+
+def test_setup_logging_valid_level(caplog: pytest.LogCaptureFixture) -> None:
+    """
+    Args:
+        caplog (LogCaptureFixture): object that 
+            captures the logged information
+    
+    Returns:
+        None
+    """
+    setup_logging("debug")
+
+    with caplog.at_level(logging.DEBUG):
+        logging.debug("debug message")
+
+    assert "debug message" in caplog.text
+    assert caplog.records[0].levelno == logging.DEBUG
