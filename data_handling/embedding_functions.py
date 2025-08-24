@@ -19,7 +19,7 @@ embedding_function = HuggingFaceEmbeddings(
 
 def embed_docs(docs: List[Document],
                client: QdrantClient,
-               collection_name: str) -> None:
+               collection_name: str) -> bool:
     """
     Function used to embed a List of chunks, handling them 
     individually, and exporting the results to the VectorDB
@@ -31,17 +31,16 @@ def embed_docs(docs: List[Document],
         collection_name (str): name of the Qdrant collection
 
     Returns:
-        None
+        upload_success (bool)
     """
     if not docs:
         logging.warning("No documents provided for embedding.")
-        return
+        return False
 
     chunks = [doc.page_content.strip() for doc in docs if doc.page_content.strip()]
 
     if not chunks:
         logging.warning("All provided documents have empty content.")
-
 
     embeddings = embed_chunks(chunks=chunks)
 
@@ -50,11 +49,12 @@ def embed_docs(docs: List[Document],
     except KeyError as e:
         raise KeyError("First document is missing 'pmid' in its metadata.") from e
 
-    upload_docs_to_qdrant(docs=docs,
-                          embeddings=embeddings,
-                          base_id=base_id,
-                          client=client,
-                          collection_name=collection_name)
+    upload_success = upload_docs_to_qdrant(docs=docs,
+                                          embeddings=embeddings,
+                                          base_id=base_id,
+                                          client=client,
+                                          collection_name=collection_name)
+    return upload_success
 
 def embed_chunks(chunks: List[str]) -> List[List[float]]:
     """

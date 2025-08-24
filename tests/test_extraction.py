@@ -493,7 +493,7 @@ def test_iterate_tar_normal_flow(tar_fixture, monkeypatch: MonkeyPatch) -> None:
 
     processed = []
     def fake_process_xml_member(fileobj: BinaryIO, member_name: str,
-                                client: QdrantClient, collection_name: str) -> None:
+                                client: QdrantClient, collection_name: str) -> bool:
         """
         Function created to simulate the processing of an XML member
 
@@ -504,10 +504,11 @@ def test_iterate_tar_normal_flow(tar_fixture, monkeypatch: MonkeyPatch) -> None:
             collection_name (str): name of the collection
         
         Returns:
-            None
+            (bool): flag that indicates that uploading was successful
         """
         processed.append((member_name, client, collection_name))
         fileobj.close()
+        return True
 
     with patch("data_handling.get_data.load_checkpoint", return_value=mock_processed_files),\
          patch("data_handling.get_data.save_checkpoint", side_effect=fake_save_checkpoint),\

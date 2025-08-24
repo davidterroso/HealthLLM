@@ -95,7 +95,7 @@ def upload_docs_to_qdrant(docs: List[Document],
                           embeddings: List[List[float]],
                           base_id: str,
                           client: QdrantClient,
-                          collection_name: str) -> None:
+                          collection_name: str) -> bool:
     """
     Uploads the document's chunks embeddings to the VectorDB 
     that is hosted in the cloud 
@@ -109,7 +109,8 @@ def upload_docs_to_qdrant(docs: List[Document],
         collection_name (str): name of the Qdrant collection
 
     Returns:
-        None
+        (bool): flag that indicates whether the upload was 
+            sucesseful or not
     """
 
     if "embedding_dim" not in config:
@@ -144,5 +145,6 @@ def upload_docs_to_qdrant(docs: List[Document],
                 raise RuntimeError(f"Qdrant upsert failed: {e}") from e
             except Exception as e:
                 raise ConnectionError(f"Failed to upload points to Qdrant: {e}") from e
-    else:
-        logging.info("No valid points to upload.")
+        return True
+    logging.info("No valid points to upload.")
+    return False

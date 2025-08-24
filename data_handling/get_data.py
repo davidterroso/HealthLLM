@@ -80,7 +80,7 @@ def safe_extract_member(tar: tarfile.TarFile, member: tarfile.TarInfo,
 def process_xml_member(fileobj: IO,
                        member_name: str,
                        client: QdrantClient,
-                       collection_name: str) -> None:
+                       collection_name: str) -> bool:
     """
     Receives the binary information of a XML file, reads it and extracts 
     the relevant informations from it, calling the chunking and embedding 
@@ -93,8 +93,10 @@ def process_xml_member(fileobj: IO,
         collection_name (str): name of the collection
 
     Returns:
-        None
+        upload_success (bool): flag that indicates whether the documents 
+            have successfully been uploaded or not
     """
+    upload_success = False
     try:
         file_content = fileobj.read()
         text, metadata = extract_from_xml(BytesIO(file_content), member_name)
@@ -103,32 +105,36 @@ def process_xml_member(fileobj: IO,
 
         if not doc_id:
             logging.warning("Skipping %s: no PMID found", member_name)
-            return
-
-        point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{doc_id}_chunk_0"))
-
-        existing = client.retrieve(
-            collection_name=collection_name,
-            ids=[point_id]
-        )
-
-        if not existing:
-            if text is not None:
-                chunks = text_chunker(text, metadata)
-                embed_docs(chunks, client, collection_name)
-            else:
-                logging.warning("No text extracted from %s", member_name)
         else:
+            point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{doc_id}_chunk_0"))
+
+            existing = client.retrieve(
+                collection_name=collection_name,
+                ids=[point_id]
+            )
+
+            if not existing:
+                if text is not None:
+                    chunks = text_chunker(text, metadata)
+                    upload_success = embed_docs(chunks, client, collection_name)
+                logging.warning("No text extracted from %s", member_name)
+                upload_success = False
             logging.info("Skipping embedded document.")
+            upload_success = True
 
     except etree.XMLSyntaxError as e: # pylint: disable=c-extension-no-member
         logging.error("XML parsing error in %s: %s", member_name, e)
+        upload_success = False
     except UnicodeDecodeError as e:
         logging.error("Encoding error in %s: %s", member_name, e)
+        upload_success = False
     except ValueError as e:
         logging.error("Data error in %s: %s", member_name, e)
+        upload_success = False
     finally:
         fileobj.close()
+
+    return upload_success
 
 def load_checkpoint() -> set:
     """
@@ -192,13 +198,14 @@ def iterate_tar(client: QdrantClient,
                     continue
 
                 if fileobj:
-                    process_xml_member(fileobj=fileobj,
-                                       member_name=member.name,
-                                       client=client,
-                                       collection_name=collection_name)
-                    processed_files.add(member.name)
-                    save_checkpoint(processed_files=processed_files)
-                    logging.info("Uploaded %s: %d / %d", member.name, i, len(members))
+                    upload_success = process_xml_member(fileobj=fileobj,
+                                                        member_name=member.name,
+                                                        client=client,
+                                                        collection_name=collection_name)
+                    if upload_success:
+                        processed_files.add(member.name)
+                        save_checkpoint(processed_files=processed_files)
+                    logging.info("Iterated %s: %d / %d", member.name, i, len(members))
                 else:
                     logging.info("Skipping embedded document: %s", member.name)
 
@@ -228,7 +235,7 @@ def extract_from_xml(xml_source: Union[str, BinaryIO],
         text = " ".join(map(str, results)).strip()
 
         title_el = tree.find('.//article-title')
-        title = ''.join(title_el.itertext()) if title_el is not None else None
+        title = ''.join(str(t) for t in title_el.itertext()) if title_el is not None else None
         journal = tree.findtext('.//journal-title')
         year = tree.findtext('.//pub-date/year')
         doi = tree.findtext('.//article-id[@pub-id-type="doi"]')
