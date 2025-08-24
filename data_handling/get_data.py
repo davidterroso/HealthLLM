@@ -227,7 +227,8 @@ def extract_from_xml(xml_source: Union[str, BinaryIO],
             results = [results]
         text = " ".join(map(str, results)).strip()
 
-        title = tree.findtext('.//article-title')
+        title_el = tree.find('.//article-title')
+        title = ''.join(title_el.itertext()) if title_el is not None else None
         journal = tree.findtext('.//journal-title')
         year = tree.findtext('.//pub-date/year')
         doi = tree.findtext('.//article-id[@pub-id-type="doi"]')
