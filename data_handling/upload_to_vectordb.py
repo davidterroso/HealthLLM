@@ -63,6 +63,34 @@ def initiate_qdrant_session(collection_name: str) -> QdrantClient:
 
     return client
 
+def build_point(doc: Document, embedding: List[float], base_id: str, i: int) -> PointStruct:
+    """
+    Builds a Qdrant Point for a given chunk
+
+    Args:
+        doc (Document): chunk that is going to be 
+            uploaded
+        embedding (List[float]): embeddings of the 
+            given chunk
+        base_id (str): file identifier
+        i (int): index of the chunk
+
+    Returns:
+        (PointStruct) Qdrant point ready to be uploaded
+    """
+    if len(embedding) != config['embedding_dim']:
+        raise ValueError(f"Invalid vector size: expected {config['embedding_dim']},\
+                         got {len(embedding)}")
+
+    payload = {**doc.metadata, "chunk_index": i, "text": doc.page_content}
+
+    if not payload.get("title"):
+        raise KeyError(f"Missing 'title' in metadata for chunk #{i}")
+
+    point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{base_id}_chunk_{i}"))
+
+    return PointStruct(id=point_id, vector=embedding, payload=payload)
+
 def upload_docs_to_qdrant(docs: List[Document],
                           embeddings: List[List[float]],
                           base_id: str,
@@ -92,29 +120,8 @@ def upload_docs_to_qdrant(docs: List[Document],
     for i, doc in enumerate(docs):
         payload = None
         try:
-            embedding = embeddings[i]
-            if len(embedding) != config['embedding_dim']:
-                raise ValueError(f"Invalid vector size: expected \
-                                 {config['embedding_dim']}, got {len(embedding)}")
-
-            payload = {
-                **doc.metadata,
-                "chunk_index": i,
-                "text": doc.page_content
-            }
-
-            if not payload.get('title'):
-                raise KeyError(f"Missing 'title' in metadata for chunk #{i}")
-
-            point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{base_id}_chunk_{i}"))
-
-            points.append(
-                PointStruct(
-                    id=point_id,
-                    vector=embedding,
-                    payload=payload
-                )
-            )
+            point = build_point(doc, embeddings[i], base_id, i)
+            points.append(point)
 
         except (IndexError, KeyError, ValueError, TypeError) as e:
             file_val = None

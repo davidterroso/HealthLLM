@@ -9,8 +9,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def test_pmc_connection():
-    """Test connection to your pmc_embeddings collection"""
+def test_pmc_connection() -> None:
+    """
+    Tests connection to your pmc_embeddings collection
+    by retrieving some documents from the vector database
+
+    Args:
+        None
+    
+    Returns:
+        None
+    """
 
     url = os.getenv("QDRANT_HOST")
     api_key = os.getenv("QDRANT_API_KEY")
@@ -32,8 +41,18 @@ def test_pmc_connection():
 
             info = client.get_collection(pmc_collection)
             print(f"  ├ Total documents: {info.points_count}")
-            print(f"  ├ Vector dimension: {info.config.params.vectors.size}")
-            print(f"  └ Distance metric: {info.config.params.vectors.distance}")
+
+            vectors = info.config.params.vectors
+            if isinstance(vectors, dict):
+                for name, params in vectors.items():
+                    print(f"  ├ Vector '{name}' dimension: {getattr(params, 'size', 'Unknown')}")
+                    print(f"  ├ Vector '{name}' distance metric: \
+                          {getattr(params, 'distance', 'Unknown')}")
+            elif vectors is not None:
+                print(f"  ├ Vector dimension: {getattr(vectors, 'size', 'Unknown')}")
+                print(f"  └ Distance metric: {getattr(vectors, 'distance', 'Unknown')}")
+            else:
+                print("  ├ Vector config not found.")
 
             print("\nSample documents:")
             points, _ = client.scroll(
