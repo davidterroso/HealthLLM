@@ -182,7 +182,7 @@ def iterate_tar(client: QdrantClient,
         with tarfile.open(tar_file_dir, "r:gz") as tar:
             members = tar.getmembers()
 
-            for member in members:
+            for i, member in enumerate(members):
                 try:
                     fileobj = safe_extract_member(tar=tar,
                                                   member=member,
@@ -198,6 +198,7 @@ def iterate_tar(client: QdrantClient,
                                        collection_name=collection_name)
                     processed_files.add(member.name)
                     save_checkpoint(processed_files=processed_files)
+                    logging.info("Uploaded %s: %d / %d", member.name, i, len(members))
                 else:
                     logging.info("Skipping embedded document: %s", member.name)
 
