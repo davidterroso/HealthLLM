@@ -104,9 +104,10 @@ def search_docs(query: str, k: int = 5) -> List[Document]:
 
         documents = []
         for hit in search_result:
-            content = hit.payload.get('text', '')
+            payload = hit.payload or {}
+            content = payload.get('text', '')
 
-            metadata = {k: v for k, v in hit.payload.items() if k != 'text'}
+            metadata = {k: v for k, v in payload.items() if k != 'text'}
 
             metadata['similarity_score'] = hit.score
 

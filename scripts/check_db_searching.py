@@ -5,12 +5,12 @@ database with proper metadata access
 
 from requests import RequestException
 from langchain.schema import Document
-from data_handling.db_searching import search_with_qdrant_client
+from data_handling.db_searching import search_docs
 from utils.load_config import load_config
 
 config = load_config()
 
-def print_document_details(doc: Document, index: int=None, score: float=None) -> None:
+def print_document_details(doc: Document, index: int) -> None:
     """
     Helper function to print document details nicely
     
@@ -23,13 +23,8 @@ def print_document_details(doc: Document, index: int=None, score: float=None) ->
     Returns:
         None
     """
-    if index is not None:
-        print(f"\n=== Document {index + 1} ===")
-
-    if score is not None:
-        print(f"Similarity Score: {score:.4f}")
-    elif 'similarity_score' in doc.metadata:
-        print(f"Similarity Score: {doc.metadata['similarity_score']:.4f}")
+    print(f"\n=== Document {index + 1} ===")
+    print(f"Similarity Score: {doc.metadata['similarity_score']:.4f}")
 
     print(f"Title: {doc.metadata.get('title', 'N/A')}")
     print(f"Journal: {doc.metadata.get('journal', 'N/A')}")
@@ -60,7 +55,7 @@ if __name__ == "__main__":
 
     print("\n\nResults:")
     try:
-        direct_docs = search_with_qdrant_client(query=QUERY, k=3)
+        direct_docs = search_docs(query=QUERY, k=3)
         for i, document in enumerate(direct_docs):
             print_document_details(document, index=i)
     except search_exceptions as e:

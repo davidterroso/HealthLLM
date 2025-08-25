@@ -23,8 +23,9 @@ def debug_stored_data(collection_name: str):
     )
 
     for point in points[0]:
+        payload = point.payload or {}
         print(f"Point ID: {point.id}")
-        print(f"Payload keys: {list(point.payload.keys())}")
+        print(f"Payload keys: {list(payload.keys())}")
         print(f"Payload: {point.payload}")
         print("---")
 
