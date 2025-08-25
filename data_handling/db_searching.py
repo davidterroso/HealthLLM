@@ -84,6 +84,7 @@ def search_docs(query: str, k: int = 5) -> List[Document]:
         
     Returns:
         List[Document]: list of documents with properly extracted metadata
+        or [] if an error occurs
     """
     try:
         embedding_function, collection_name = create_embedding_function()
@@ -105,25 +106,26 @@ def search_docs(query: str, k: int = 5) -> List[Document]:
         documents = []
         for hit in search_result:
             payload = hit.payload or {}
-            content = payload.get('text', '')
+            content = payload.get("text", "")
 
-            metadata = {k: v for k, v in payload.items() if k != 'text'}
-
-            metadata['similarity_score'] = hit.score
+            metadata = {k: v for k, v in payload.items() if k != "text"}
+            metadata["similarity_score"] = hit.score
 
             documents.append(Document(page_content=content, metadata=metadata))
 
         return documents
 
-    except (UnexpectedResponse, ResponseHandlingException) as e:
-        print(f"Qdrant API error: {e}")
-        return []
-    except RequestException as e:
-        print(f"Network error: {e}")
-        return []
-    except (KeyError, OSError) as e:
-        print(f"Configuration or embedding error: {e}")
-        return []
-    except ValueError as e:
-        print(f"Invalid input error: {e}")
-        return []
+    except (
+        UnexpectedResponse,
+        ResponseHandlingException,
+        RequestException,
+        KeyError,
+        OSError,
+        ValueError,
+        RuntimeError,
+    ) as e:
+        print(f"Handled error in search_docs: {type(e).__name__}: {e}")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Unexpected error in search_docs: {type(e).__name__}: {e}")
+
+    return []
