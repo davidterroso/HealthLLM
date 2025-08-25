@@ -117,10 +117,12 @@ def process_xml_member(fileobj: IO,
                 if text is not None:
                     chunks = text_chunker(text, metadata)
                     upload_success = embed_docs(chunks, client, collection_name)
-                logging.warning("No text extracted from %s", member_name)
-                upload_success = False
-            logging.info("Skipping embedded document.")
-            upload_success = True
+                else:
+                    logging.warning("No text extracted from %s", member_name)
+                    upload_success = False
+            else:
+                logging.info("Skipping embedded document.")
+                upload_success = True
 
     except etree.XMLSyntaxError as e: # pylint: disable=c-extension-no-member
         logging.error("XML parsing error in %s: %s", member_name, e)
