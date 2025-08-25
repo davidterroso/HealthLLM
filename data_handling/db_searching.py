@@ -1,30 +1,23 @@
 """
 Used in the comparison between the embedded queries and the documents 
 in the VectorDB
-
-THIS FILE IS OUTDATED AND CORRESPONDS TO AN OLDER VERSION OF THE CODE
 """
 
 import os
-from typing import List, Union, Tuple
+from typing import List, Tuple
 from dotenv import load_dotenv
-from langchain_huggingface import HuggingFaceEmbeddings, HuggingFaceEndpoint
-from langchain_huggingface.llms import HuggingFacePipeline
-from langchain_community.embeddings import OpenAIEmbeddings
-from langchain_community.vectorstores import FAISS
-from langchain_core.prompts import PromptTemplate
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_qdrant import QdrantVectorStore
 from langchain_core.documents import Document
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough, Runnable
-from transformers import pipeline, AutoModelForSeq2SeqLM, AutoTokenizer
+from qdrant_client import QdrantClient
+from qdrant_client.http.exceptions import UnexpectedResponse, ResponseHandlingException
+from requests import RequestException
 from utils.load_config import load_config
 
 load_dotenv()
-hf_api_key = os.getenv("HUGGINGFACEHUB_API_TOKEN")
-
 config = load_config()
 
-def create_embedding_function() -> Tuple[Union[HuggingFaceEmbeddings, OpenAIEmbeddings], str]:
+def create_embedding_function() -> Tuple[HuggingFaceEmbeddings, str]:
     """
     Factory function to create the appropriate embedding function and vector store name
     
@@ -34,153 +27,102 @@ def create_embedding_function() -> Tuple[Union[HuggingFaceEmbeddings, OpenAIEmbe
     Returns:
         embedding_function (Union[HuggingFaceEmbeddings, OpenAIEmbeddings]): function used 
             in the embedding
-        vector_store_name (str): name of the vector store
+        collection_name (str): name of the collection where the embeddings are stored
     """
-    if config["local_or_api_embedding"] == "local":
-        embedding_func: Union[HuggingFaceEmbeddings, OpenAIEmbeddings] = HuggingFaceEmbeddings(
-            model_name=config["local_embedding_model"]
+    try:
+        embedding_func = HuggingFaceEmbeddings(
+            model_name=config["hf_embedding_model"]
         )
-        vs_name = "../local_embeddings/hf_faiss_pmc"
-    elif config["local_or_api_embedding"] == "api":
-        embedding_func = OpenAIEmbeddings(model=config["openai_embedding_model"])
-        vs_name = "../local_embeddings/openai_faiss_pmc"
-    else:
-        raise ValueError(f"Invalid embedding source: {config['local_or_api_embedding']}")
-    return embedding_func, vs_name
+        collection_name = config["collection_name"]
+        return embedding_func, collection_name
+    except KeyError as e:
+        raise KeyError(f"Missing config key in load_config(): {e}") from e
+    except OSError as e:
+        raise OSError(f"Error loading embedding model \
+                      '{config.get('hf_embedding_model')}': {e}") from e
 
-def create_llm_and_embedding() -> Tuple[Union[HuggingFacePipeline, HuggingFaceEndpoint],
-                                       Union[HuggingFaceEmbeddings, OpenAIEmbeddings], str]:
+def get_qdrant_store(embedding_function: HuggingFaceEmbeddings,
+                     collection_name: str) -> QdrantVectorStore:
     """
-    Factory function to create the appropriate LLM and embedding function
-    
+    Initiates the Qdrant store and using the secret keys 
+
     Args:
-        None
+        embedding_function (HuggingFaceEmbeddings): initiated
+            HuggingFaceEmbeddings function
+        collection_name (str): name of the Qdrant collection 
+            to search
 
     Returns:
-        llm (Union[HuggingFacePipeline, HuggingFaceEndpoint]): function used when calling 
-            the LLM
-        embedding_function (Union[HuggingFaceEmbeddings, OpenAIEmbeddings]): function used 
-            in the embedding
-        vector_store_name (str): name of the vector store
+        (Qdrant): initiated Qdrant LangChain vector store
     """
-    if config["local_or_api_llm"] == "local":
-        tokenizer = AutoTokenizer.from_pretrained(config["local_llm"])
-        model = AutoModelForSeq2SeqLM.from_pretrained(config["local_llm"])
-        embedding_func: Union[HuggingFaceEmbeddings, OpenAIEmbeddings] = HuggingFaceEmbeddings(
-            model_name=config["local_embedding_model"]
+    try:
+        client = QdrantClient(
+            url=os.getenv("QDRANT_HOST"),
+            api_key=os.getenv("QDRANT_API_KEY")
         )
-        vs_name = "../local_embeddings/hf_faiss_pmc"
+        return QdrantVectorStore(
+            client=client,
+            collection_name=collection_name,
+            embedding=embedding_function,
+            content_payload_key="text"
+        )
+    except (UnexpectedResponse, ResponseHandlingException) as e:
+        raise RuntimeError(f"Qdrant API error: {e}") from e
+    except RequestException as e:
+        raise ConnectionError(f"Network error while connecting to Qdrant: {e}") from e
+    except Exception as e:
+        raise RuntimeError(f"Unexpected error creating Qdrant store:\
+                           {type(e).__name__}: {e}") from e
 
-        pipe = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
-        llm_instance: Union[HuggingFacePipeline,
-                            HuggingFaceEndpoint] = HuggingFacePipeline(pipeline=pipe)
+def search_docs(query: str, k: int = 5) -> List[Document]:
+    """
+    Search documents method using Qdrant client directly for more control
+    
+    Args:
+        query (str): query to search for
+        k (int): number of results to return
+        
+    Returns:
+        List[Document]: list of documents with properly extracted metadata
+    """
+    try:
+        embedding_function, collection_name = create_embedding_function()
 
-    elif config["local_or_api_llm"] == "api":
-        embedding_func = OpenAIEmbeddings(model=config["openai_embedding_model"])
-        vs_name = "../local_embeddings/openai_faiss_pmc"
-        llm_instance = HuggingFaceEndpoint(
-            repo_id=config["mistral_llm"],
-            model=config["mistral_llm"],
-            model_kwargs={"temperature": 0.7, "max_new_tokens": 512},
-            huggingfacehub_api_token=hf_api_key,
+        query_embedding = embedding_function.embed_query(query)
+
+        client = QdrantClient(
+            url=os.getenv("QDRANT_HOST"),
+            api_key=os.getenv("QDRANT_API_KEY")
         )
 
-    else:
-        raise ValueError(f"Invalid LLM source: {config['local_or_api_llm']}")
+        search_result = client.search(
+            collection_name=collection_name,
+            query_vector=query_embedding,
+            limit=k,
+            with_payload=True
+        )
 
-    return llm_instance, embedding_func, vs_name
+        documents = []
+        for hit in search_result:
+            content = hit.payload.get('text', '')
 
-def search_by_query(query: str) -> List[Document]:
-    """
-    Searches the given query in the VectorDB, 
-    embedding it previously
+            metadata = {k: v for k, v in hit.payload.items() if k != 'text'}
 
-    Args:
-        query (str): query used to search 
-            the document 
-    
-    Returns:
-        results (List[Document]): list of 
-            documents retrieved
-    """
-    embedding_function, vs_name = create_embedding_function()
+            metadata['similarity_score'] = hit.score
 
-    # Dangerous deserialization is on because the data is local
-    vector_store = FAISS.load_local(vs_name,
-                                    embeddings=embedding_function,
-                                    allow_dangerous_deserialization=True)
+            documents.append(Document(page_content=content, metadata=metadata))
 
-    results = vector_store.similarity_search(query=query, k=3)
+        return documents
 
-    return results
-
-def format_docs(docs: List[Document]) -> str:
-    """
-    Function used to format the documents it receives, by 
-    joining consecutive documents through paragraphs.
-
-    Args:
-        docs (List[str]): documents desired to join
-    
-    Returns:
-        str: documents formated into a single string
-    """
-    return "\n\n".join(doc.page_content for doc in docs)
-
-def answer_questions(query: str) -> str:
-    """
-    Receives a query, searches the most similar documents 
-    in the VectorDB (FAISS) and summarizes its content. 
-    All this limited by the given prompt, which can 
-    obviously be tuned 
-
-    Args:
-            query (str): search query or question input by the 
-                    user to retrieve the most similar documents
-    
-    Returns:
-            answer (str): answer given by the selected LLM
-
-    """
-    llm, embedding_function, vs_name = create_llm_and_embedding()
-
-    # Dangerous deserialization is on because the data is local
-    vector_store = FAISS.load_local(vs_name,
-                                    embeddings=embedding_function,
-                                    allow_dangerous_deserialization=True)
-
-    prompt = PromptTemplate.from_template(
-        """
-        You are a biomedical research assistant. \
-        Use the context below to answer the user's\
-        question in a clear, evidence-based manner.\
-
-        Only use the provided context. Do not rely\
-        on prior knowledge. If the answer cannot be\
-        determined from the context, say so honestly.\
-
-        Context:
-        {context}
-
-        Question:
-        {question}
-
-        Answer:
-        """)
-
-    qa_chain: Runnable = (
-        {
-            "context": vector_store.as_retriever() | format_docs,
-            "question": RunnablePassthrough(),
-        }
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
-    result = qa_chain.invoke(query)
-    print("\n Answer:", result)
-    return result
-
-if __name__ == "__main__":
-    QUERY = "foot shape differences in diabetic patients"
-    answer_questions(query=QUERY)
+    except (UnexpectedResponse, ResponseHandlingException) as e:
+        print(f"Qdrant API error: {e}")
+        return []
+    except RequestException as e:
+        print(f"Network error: {e}")
+        return []
+    except (KeyError, OSError) as e:
+        print(f"Configuration or embedding error: {e}")
+        return []
+    except ValueError as e:
+        print(f"Invalid input error: {e}")
+        return []
