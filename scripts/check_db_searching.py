@@ -39,14 +39,14 @@ def print_document_details(doc: Document, index: int) -> None:
 
 if __name__ == "__main__":
     # Examples of queries to ask that must retrieve the same document
-    QUERY = "What process produces egg cells in sexual organisms?"
+    # QUERY = "What process produces egg cells in sexual organisms?"
     # QUERY = "How does meiosis change the number of chromosomes in a cell?"
     # QUERY = "What are the key steps involved in meiosis?"
     # QUERY = "How many haploid nuclei result from one diploid nucleus?"
     # QUERY = "What is the difference between diploid and haploid nuclei in meiosis?"
-    # QUERY = "In all sex animals & plants, egg cell prod involves meosis, the cmplx \
-    # cell process (DNA repl, recomb, 2 nuc div) whereby 1 diploid nuc (2 copies per \
-    # chrom) becomes 4 genetically diff haploid nucs"
+    QUERY = "In all sex animals & plants, egg cell prod involves meosis, the cmplx" \
+    "cell process (DNA repl, recomb, 2 nuc div) whereby 1 diploid nuc (2 copies per" \
+    "chrom) becomes 4 genetically diff haploid nucs"
 
     print("=" * 80)
     print("TESTING RAG PIPELINE WITH METADATA ACCESS")

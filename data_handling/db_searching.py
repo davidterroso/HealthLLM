@@ -6,7 +6,7 @@ in the VectorDB
 import os
 from typing import List, Tuple
 from dotenv import load_dotenv
-from textblob import TextBlob
+from spellchecker import SpellChecker
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from langchain_core.documents import Document
@@ -85,8 +85,17 @@ def correct_query(query: str) -> str:
     Returns:
         corrected_query (str): corrected query
     """
-    blob = TextBlob(query)
-    corrected_query = str(blob.correct())
+    spell = SpellChecker()
+    corrected_words = []
+
+    for word in query.split():
+        corrected = spell.correction(word)
+        if corrected is None:
+            corrected_words.append(word)
+        else:
+            corrected_words.append(corrected)
+
+    corrected_query = " ".join(corrected_words)
     return corrected_query
 
 def search_docs(query: str, k: int = 5) -> List[Document]:
