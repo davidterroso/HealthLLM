@@ -6,6 +6,7 @@ in the VectorDB
 import os
 from typing import List, Tuple
 from dotenv import load_dotenv
+from textblob import TextBlob
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from langchain_core.documents import Document
@@ -74,6 +75,20 @@ def get_qdrant_store(embedding_function: HuggingFaceEmbeddings,
         raise RuntimeError(f"Unexpected error creating Qdrant store:\
                            {type(e).__name__}: {e}") from e
 
+def correct_query(query: str) -> str:
+    """
+    Corrects typos in the received query
+
+    Args:
+        query (str): query desired to correct
+
+    Returns:
+        corrected_query (str): corrected query
+    """
+    blob = TextBlob(query)
+    corrected_query = str(blob.correct())
+    return corrected_query
+
 def search_docs(query: str, k: int = 5) -> List[Document]:
     """
     Search documents method using Qdrant client directly for more control
@@ -88,6 +103,8 @@ def search_docs(query: str, k: int = 5) -> List[Document]:
     """
     try:
         embedding_function, collection_name = create_embedding_function()
+
+        query = correct_query(query)
 
         query_embedding = embedding_function.embed_query(query)
 

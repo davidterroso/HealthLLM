@@ -33,17 +33,20 @@ def print_document_details(doc: Document, index: int) -> None:
     print(f"DOI: {doc.metadata.get('doi', 'N/A')}")
     print(f"Chunk Index: {doc.metadata.get('chunk_index', 'N/A')}")
     print(f"File: {doc.metadata.get('file', 'N/A')}")
-    print(f"\nContent Preview: {doc.page_content[:200]}...")
+    print(f"\nContent Preview: {doc.page_content}")
     print("-" * 80)
 
 
 if __name__ == "__main__":
-    QUERY = (
-        "In all sexual animals and plants, production of an egg cell involves meiosis, "
-        "the complex cellular process (involving DNA replication, recombination, and "
-        "two nuclear divisions) whereby one diploid nucleus (with two copies of each "
-        "chromosome) becomes four genetically different haploid nuclei"
-    )
+    # Examples of queries to ask that must retrieve the same document
+    QUERY = "What process produces egg cells in sexual organisms?"
+    # QUERY = "How does meiosis change the number of chromosomes in a cell?"
+    # QUERY = "What are the key steps involved in meiosis?"
+    # QUERY = "How many haploid nuclei result from one diploid nucleus?"
+    # QUERY = "What is the difference between diploid and haploid nuclei in meiosis?"
+    # QUERY = "In all sex animals & plants, egg cell prod involves meosis, the cmplx \
+    # cell process (DNA repl, recomb, 2 nuc div) whereby 1 diploid nuc (2 copies per \
+    # chrom) becomes 4 genetically diff haploid nucs"
 
     print("=" * 80)
     print("TESTING RAG PIPELINE WITH METADATA ACCESS")
