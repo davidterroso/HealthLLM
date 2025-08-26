@@ -20,7 +20,7 @@ def get_embeddings_dims() -> int:
     """
 
     config_path = Path(__file__).resolve().parent.parent \
-        / "data_handling" / "config.json"
+        / "prepare_data" / "config.json"
 
     with open(config_path, "r", encoding="utf-8") as f:
         config = json.load(f)

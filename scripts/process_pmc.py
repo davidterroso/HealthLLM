@@ -2,7 +2,7 @@
 Script called to process the data using GitHub Actions
 """
 
-from data_handling.get_data import data_pipeline
+from prepare_data.get_data import data_pipeline
 from utils.load_config import load_config
 
 config = load_config()

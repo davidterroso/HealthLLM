@@ -18,7 +18,7 @@ from pytest import fixture, LogCaptureFixture, MonkeyPatch
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 # pylint: disable=wrong-import-position
-from data_handling.get_data import (
+from prepare_data.get_data import (
     safe_extract_member,
     extract_from_xml,
     process_xml_member,
@@ -256,9 +256,9 @@ def test_extract_from_nonexistent_file(caplog: LogCaptureFixture) -> None:
     assert not metadata
     assert any("XML parsing error" in message for message in caplog.messages)
 
-@patch("data_handling.get_data.embed_docs")
-@patch("data_handling.get_data.text_chunker")
-@patch("data_handling.get_data.extract_from_xml")
+@patch("prepare_data.get_data.embed_docs")
+@patch("prepare_data.get_data.text_chunker")
+@patch("prepare_data.get_data.extract_from_xml")
 def test_process_xml_member_correct_path(mock_extract: MagicMock,
                                          mock_chunker: MagicMock,
                                          mock_embed: MagicMock) -> None:
@@ -295,9 +295,9 @@ def test_process_xml_member_correct_path(mock_extract: MagicMock,
                                        "test_collection")
     assert test_fileobj.closed
 
-@patch("data_handling.get_data.embed_docs")
-@patch("data_handling.get_data.text_chunker")
-@patch("data_handling.get_data.extract_from_xml")
+@patch("prepare_data.get_data.embed_docs")
+@patch("prepare_data.get_data.text_chunker")
+@patch("prepare_data.get_data.extract_from_xml")
 def test_process_xml_member_already_exists(mock_extract: MagicMock,
                                            mock_chunker: MagicMock,
                                            mock_embed: MagicMock,
@@ -350,7 +350,7 @@ def test_process_xml_member_xml_error(caplog: LogCaptureFixture):
     test_fileobj = io.BytesIO(b"<root><body><p>content</p></body></root>")
 
     with patch(
-            "data_handling.get_data.extract_from_xml",
+            "prepare_data.get_data.extract_from_xml",
             side_effect=ValueError("XML parsing error")
         ):
         with caplog.at_level(logging.ERROR):
@@ -376,7 +376,7 @@ def test_process_xml_member_unicode_error(caplog: LogCaptureFixture):
     mock_qdrant_client = MagicMock(name="QdrantClient")
     test_fileobj = io.BytesIO(b"<root><body><p>content</p></body></root>")
 
-    with patch("data_handling.get_data.extract_from_xml",
+    with patch("prepare_data.get_data.extract_from_xml",
                side_effect=UnicodeDecodeError("utf-8", b"", 0, 1, "reason")):
         with caplog.at_level(logging.ERROR):
             process_xml_member(test_fileobj,
@@ -401,7 +401,7 @@ def test_process_xml_member_value_error(caplog: LogCaptureFixture):
     mock_qdrant_client = MagicMock(name="QdrantClient")
     test_fileobj = io.BytesIO(b"<root><body><p>content</p></body></root>")
 
-    with patch("data_handling.get_data.extract_from_xml",
+    with patch("prepare_data.get_data.extract_from_xml",
                side_effect=ValueError("Bad data")):
         with caplog.at_level(logging.ERROR):
             process_xml_member(test_fileobj,
@@ -454,7 +454,7 @@ def test_iterate_tar_normal_flow(tar_fixture, monkeypatch: MonkeyPatch) -> None:
     mock_client = MagicMock()
     mock_processed_files = set()
 
-    monkeypatch.setattr("data_handling.get_data.config",
+    monkeypatch.setattr("prepare_data.get_data.config",
                         {"checkpoints_path": str(Path(tar_fixture).parent / "checkpoint.json")})
 
     def fake_save_checkpoint(*, processed_files: set) -> None:
@@ -510,10 +510,10 @@ def test_iterate_tar_normal_flow(tar_fixture, monkeypatch: MonkeyPatch) -> None:
         fileobj.close()
         return True
 
-    with patch("data_handling.get_data.load_checkpoint", return_value=mock_processed_files),\
-         patch("data_handling.get_data.save_checkpoint", side_effect=fake_save_checkpoint),\
-         patch("data_handling.get_data.safe_extract_member", side_effect=fake_safe_extract_member),\
-         patch("data_handling.get_data.process_xml_member", side_effect=fake_process_xml_member):
+    with patch("prepare_data.get_data.load_checkpoint", return_value=mock_processed_files),\
+         patch("prepare_data.get_data.save_checkpoint", side_effect=fake_save_checkpoint),\
+         patch("prepare_data.get_data.safe_extract_member", side_effect=fake_safe_extract_member),\
+         patch("prepare_data.get_data.process_xml_member", side_effect=fake_process_xml_member):
 
         iterate_tar(mock_client, "my_collection", str(tar_fixture))
 
@@ -537,7 +537,7 @@ def test_iterate_tar_handles_value_error(tar_fixture, # pylint: disable=redefine
         None
     """
     mock_client = MagicMock()
-    monkeypatch.setattr("data_handling.get_data.config",
+    monkeypatch.setattr("prepare_data.get_data.config",
                     {"checkpoints_path": str(Path(tar_fixture).parent / "checkpoint.json")})
 
     def fake_load_checkpoint() -> set:
@@ -552,7 +552,7 @@ def test_iterate_tar_handles_value_error(tar_fixture, # pylint: disable=redefine
         """
         return set()
 
-    monkeypatch.setattr("data_handling.get_data.load_checkpoint", fake_load_checkpoint)
+    monkeypatch.setattr("prepare_data.get_data.load_checkpoint", fake_load_checkpoint)
 
     def safe_extract_side_effect(tar: TarFile,
                                  member: TarInfo,
@@ -572,7 +572,7 @@ def test_iterate_tar_handles_value_error(tar_fixture, # pylint: disable=redefine
         """
         raise ValueError("Bad file")
 
-    monkeypatch.setattr("data_handling.get_data.safe_extract_member", safe_extract_side_effect)
+    monkeypatch.setattr("prepare_data.get_data.safe_extract_member", safe_extract_side_effect)
 
     with caplog.at_level(logging.ERROR):
         iterate_tar(mock_client, "collection", str(tar_fixture))
@@ -594,7 +594,7 @@ def test_iterate_tar_handles_tarfile_open_errors(monkeypatch: MonkeyPatch,
         None
     """
     mock_client = MagicMock()
-    monkeypatch.setattr("data_handling.get_data.config",
+    monkeypatch.setattr("prepare_data.get_data.config",
                         {"checkpoints_path": "/tmp/checkpoint.json"})
 
     with caplog.at_level(logging.ERROR):

@@ -12,7 +12,7 @@ from pytest import fixture, MonkeyPatch
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 # pylint: disable=wrong-import-position
-from data_handling.get_data import (
+from prepare_data.get_data import (
     save_checkpoint,
     load_checkpoint
 )
@@ -31,7 +31,7 @@ def config_patch_fixture(monkeypatch: MonkeyPatch, tmp_path: str) -> dict:
         fake_config (dict): dictionary with the fake configurations
     """
     fake_config = {"checkpoints_path": Path(tmp_path) / "checkpoint.json"}
-    monkeypatch.setattr("data_handling.get_data.config", fake_config)
+    monkeypatch.setattr("prepare_data.get_data.config", fake_config)
     return fake_config
 
 # Testing function load_checkpoint

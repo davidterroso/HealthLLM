@@ -10,7 +10,7 @@ from pytest import MonkeyPatch, raises
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 # pylint: disable=wrong-import-position
-from data_handling.get_data import text_chunker
+from prepare_data.get_data import text_chunker
 from utils.load_config import load_config
 
 config = load_config()

@@ -5,7 +5,7 @@ database with proper metadata access
 
 from requests import RequestException
 from langchain.schema import Document
-from data_handling.db_searching import search_docs
+from answer_questions.db_searching import search_docs
 from utils.load_config import load_config
 
 config = load_config()

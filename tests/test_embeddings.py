@@ -13,8 +13,8 @@ from langchain.schema import Document
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 # pylint: disable=wrong-import-position
-import data_handling.embedding_functions as emb_func_module
-from data_handling.embedding_functions import embed_chunks, embed_docs
+import prepare_data.embedding_functions as emb_func_module
+from prepare_data.embedding_functions import embed_chunks, embed_docs
 from utils.load_config import load_config
 
 config = load_config()
@@ -75,8 +75,8 @@ def test_embed_docs_empty_content(sample_docs: List[Document], # pylint: disable
     ]
     client = MagicMock()
 
-    with patch("data_handling.embedding_functions.embed_chunks", return_value=[[0.1, 0.2]]):
-        with patch("data_handling.upload_to_vectordb.upload_docs_to_qdrant"):
+    with patch("prepare_data.embedding_functions.embed_chunks", return_value=[[0.1, 0.2]]):
+        with patch("prepare_data.upload_to_vectordb.upload_docs_to_qdrant"):
             embed_docs(empty_docs, client, "test_collection")
     assert "All provided documents have empty content." in caplog.text
 
@@ -96,7 +96,7 @@ def test_embed_docs_missing_pmid_raises(sample_docs: List[Document]) -> None: # 
     ]
     client = MagicMock()
 
-    with patch("data_handling.embedding_functions.embed_chunks", return_value=[[0.1, 0.2]]):
+    with patch("prepare_data.embedding_functions.embed_chunks", return_value=[[0.1, 0.2]]):
         with raises(KeyError, match="missing 'pmid'"):
             embed_docs(docs, client, "test_collection")
 
@@ -114,9 +114,9 @@ def test_embed_docs_calls_upload_docs_to_qdrant(sample_docs: List[Document]) -> 
     mock_embeddings = [[0.1] * 768, [0.2] * 768]
     client = MagicMock()
 
-    with patch("data_handling.embedding_functions.embed_chunks",
+    with patch("prepare_data.embedding_functions.embed_chunks",
                return_value=mock_embeddings) as mock_embed_chunks:
-        with patch("data_handling.embedding_functions.upload_docs_to_qdrant") as mock_upload:
+        with patch("prepare_data.embedding_functions.upload_docs_to_qdrant") as mock_upload:
             embed_docs(sample_docs, client, "my_collection")
 
     mock_embed_chunks.assert_called_once_with(chunks=["This is a test.", "Another chunk."])

@@ -11,7 +11,7 @@ from langchain_core.documents import Document
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 # pylint: disable=wrong-import-position
-from data_handling.db_searching import (
+from answer_questions.db_searching import (
     create_embedding_function,
     get_qdrant_store,
     search_docs
@@ -32,14 +32,14 @@ def test_create_embedding_function_success(monkeypatch: MonkeyPatch) -> None:
         None
     """
     monkeypatch.setitem(
-        sys.modules["data_handling.db_searching"].config,
+        sys.modules["answer_questions.db_searching"].config,
         "hf_embedding_model", "fake-model"
     )
     monkeypatch.setitem(
-        sys.modules["data_handling.db_searching"].config,
+        sys.modules["answer_questions.db_searching"].config,
         "collection_name", "test-collection"
     )
-    with patch("data_handling.db_searching.HuggingFaceEmbeddings") as mock_embed:
+    with patch("answer_questions.db_searching.HuggingFaceEmbeddings") as mock_embed:
         mock_embed.return_value = MagicMock()
         embedding_func, collection_name = create_embedding_function()
         assert embedding_func is not None
@@ -59,14 +59,14 @@ def test_create_embedding_function_missing_key(monkeypatch: MonkeyPatch) -> None
     Returns:
         None
     """
-    monkeypatch.setattr("data_handling.db_searching.config", {}, raising=False)
+    monkeypatch.setattr("answer_questions.db_searching.config", {}, raising=False)
     with raises(KeyError):
         create_embedding_function()
 
 # Tests the get_qdrant_store function
 
-@patch("data_handling.db_searching.QdrantClient")
-@patch("data_handling.db_searching.QdrantVectorStore")
+@patch("answer_questions.db_searching.QdrantClient")
+@patch("answer_questions.db_searching.QdrantVectorStore")
 def test_get_qdrant_store_success(mock_store: MagicMock, mock_client: MagicMock) -> None:
     """
     Tests the function that initiates the Qdrant store in 
@@ -92,7 +92,7 @@ def test_get_qdrant_store_success(mock_store: MagicMock, mock_client: MagicMock)
     mock_store.assert_called_once()
 
 
-@patch("data_handling.db_searching.QdrantClient", side_effect=Exception("boom"))
+@patch("answer_questions.db_searching.QdrantClient", side_effect=Exception("boom"))
 def test_get_qdrant_store_unexpected_error(mock_client: MagicMock) -> None: # pylint: disable=unused-argument
     """
     Tests the Qdrant vector store initializer when it 
@@ -110,7 +110,7 @@ def test_get_qdrant_store_unexpected_error(mock_client: MagicMock) -> None: # py
 
 # Tests the search_docs function
 
-@patch("data_handling.db_searching.QdrantClient")
+@patch("answer_questions.db_searching.QdrantClient")
 def test_search_docs_success(mock_client: MagicMock) -> None:
     """
     Tests the function that gets the documents in a success 
@@ -126,7 +126,7 @@ def test_search_docs_success(mock_client: MagicMock) -> None:
     fake_embedding_func = MagicMock()
     fake_embedding_func.embed_query.return_value = [0.1, 0.2]
 
-    with patch("data_handling.db_searching.create_embedding_function",
+    with patch("answer_questions.db_searching.create_embedding_function",
                return_value=(fake_embedding_func, "test-collection")):
 
         fake_hit = MagicMock()
@@ -144,7 +144,7 @@ def test_search_docs_success(mock_client: MagicMock) -> None:
         assert "similarity_score" in doc.metadata
 
 
-@patch("data_handling.db_searching.QdrantClient")
+@patch("answer_questions.db_searching.QdrantClient")
 def test_search_docs_with_none_payload(mock_client: MagicMock) -> None:
     """
     Tests the function that gets the documents but 
@@ -160,7 +160,7 @@ def test_search_docs_with_none_payload(mock_client: MagicMock) -> None:
     fake_embedding_func = MagicMock()
     fake_embedding_func.embed_query.return_value = [0.1, 0.2]
 
-    with patch("data_handling.db_searching.create_embedding_function",
+    with patch("answer_questions.db_searching.create_embedding_function",
                return_value=(fake_embedding_func, "test-collection")):
 
         fake_hit = MagicMock()
@@ -176,7 +176,7 @@ def test_search_docs_with_none_payload(mock_client: MagicMock) -> None:
         assert doc.metadata["similarity_score"] == 0.8
 
 
-@patch("data_handling.db_searching.QdrantClient")
+@patch("answer_questions.db_searching.QdrantClient")
 def test_search_docs_failure(mock_client: MagicMock) -> None:
     """
     Tests the function that search documents in 
@@ -193,7 +193,7 @@ def test_search_docs_failure(mock_client: MagicMock) -> None:
     fake_client.search.side_effect = Exception("search error")
     mock_client.return_value = fake_client
 
-    with patch("data_handling.db_searching.create_embedding_function",
+    with patch("answer_questions.db_searching.create_embedding_function",
                return_value=(MagicMock(), "test-collection")):
         results = search_docs("test query")
         assert not results

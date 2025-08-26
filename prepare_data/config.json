@@ -1,0 +1,15 @@
+{
+    "logging_level": "info",
+    "model": "api",
+    "local_or_api_llm": "api",
+    "hf_embedding_model": "pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb",
+    "embedding_dim": 768,
+    "local_llm": "google/flan-t5-small",
+    "mistral_llm": "mistralai/Mistral-7B-Instruct-v0.1",
+    "batch_size": 500,
+    "chunk_size": 500,
+    "chunk_overlap": 100,
+    "checkpoints_path": "checkpoints/extraction_checkpoint.json",
+    "collection_name": "pmc_embeddings",
+    "tar_file_dir": "data.tar.gz"
+}

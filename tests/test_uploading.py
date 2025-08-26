@@ -9,7 +9,7 @@ from pytest import raises, MonkeyPatch, LogCaptureFixture
 from langchain.schema import Document
 from qdrant_client.http.models import VectorParams, Distance, PointStruct
 from qdrant_client.http.exceptions import UnexpectedResponse
-import data_handling.upload_to_vectordb as upload_mod
+import prepare_data.upload_to_vectordb as upload_mod
 
 upload_mod.config = {
     "embedding_dim": 768,
@@ -34,7 +34,7 @@ def test_initiate_qdrant_session_success(monkeypatch: MonkeyPatch) -> None:
     mock_client = MagicMock()
     mock_client.get_collections.return_value.collections = []
 
-    with patch("data_handling.upload_to_vectordb.QdrantClient",
+    with patch("prepare_data.upload_to_vectordb.QdrantClient",
                return_value=mock_client) as mock_qdrant:
         client = upload_mod.initiate_qdrant_session("my_collection")
         assert client is mock_client

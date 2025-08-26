@@ -33,7 +33,7 @@ jobs:
       run: mypy .
 
     - name: Run Pylint checks
-      run: pylint data_handling utils
+      run: pylint prepare_data utils
 
     - name: Run tests
       run: pytest --maxfail=1 --disable-warnings -q

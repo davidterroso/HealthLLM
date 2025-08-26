@@ -20,7 +20,7 @@ def load_config() -> dict:
     """
     config_path = os.path.join(
         os.path.dirname(__file__),
-        '..', 'data_handling', 'config.json'
+        '..', 'prepare_data', 'config.json'
     )
     try:
         with open(os.path.abspath(config_path), "r", encoding="utf-8") as f:

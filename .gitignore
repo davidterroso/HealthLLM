@@ -4,3 +4,4 @@
 .pytest_cache
 qdrant_storage/
 *.tar.gz
+.vscode/
