@@ -59,7 +59,8 @@ def get_qdrant_store(embedding_function: HuggingFaceEmbeddings,
     try:
         client = QdrantClient(
             url=os.getenv("QDRANT_HOST"),
-            api_key=os.getenv("QDRANT_API_KEY")
+            api_key=os.getenv("QDRANT_API_KEY"),
+            timeout=60
         )
         return QdrantVectorStore(
             client=client,
