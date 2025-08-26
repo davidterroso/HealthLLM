@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator, List, Optional, Dict, Any
 from datetime import datetime
 import asyncio
-import uvicorn
+import uvicorn  # type: ignore
 from requests import Request
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -183,7 +183,7 @@ class DocumentRetriever:
 retriever = DocumentRetriever()
 
 @app.get("/", response_model=HealthResponse)
-async def root() -> None:
+async def root() -> HealthResponse:
     """
     Root endpoint for basic health check
 
@@ -200,7 +200,7 @@ async def root() -> None:
     )
 
 @app.get("/health", response_model=HealthResponse)
-async def health_check() -> None:
+async def health_check() -> HealthResponse:
     """
     More detailed health check endpoint
     
@@ -217,7 +217,8 @@ async def health_check() -> None:
     )
 
 @app.post("/ask", response_model=AnswerResponse)
-async def ask_question(request: QuestionRequest, background_tasks: BackgroundTasks):
+async def ask_question(request: QuestionRequest,
+                       background_tasks: BackgroundTasks) -> AnswerResponse:
     """
     Main endpoint for asking questions and getting answers based on the fetched 
     documents. Gets the relevant articles and generates a natural answer
@@ -238,9 +239,11 @@ async def ask_question(request: QuestionRequest, background_tasks: BackgroundTas
     logging.info("Processing question request %s: %s", request_id, request.question)
 
     try:
+        # Ensure context_limit is always int
+        context_limit = request.context_limit if request.context_limit is not None else 5
         retrieved_docs = await retriever.retrieve_documents(
             query=request.question,
-            limit=request.context_limit
+            limit=context_limit
         )
 
         if not retrieved_docs:
@@ -296,7 +299,7 @@ async def ask_question(request: QuestionRequest, background_tasks: BackgroundTas
         ) from e
 
 @app.get("/stats")
-async def get_stats() -> None:
+async def get_stats() -> Dict[str, Any]:
     """
     Optional endpoint to get system statistics
 
@@ -320,7 +323,7 @@ async def get_stats() -> None:
 async def log_request_completion(request_id: str,
                                  question: str,
                                  processing_time: float,
-                                 num_sources: int):
+                                 num_sources: int) -> None:
     """
     Background task for logging request completion, including information that
     allows the assessment of some bottlenecks
@@ -337,7 +340,7 @@ async def log_request_completion(request_id: str,
     )
 
 @app.exception_handler(HTTPException)
-async def http_exception_handler(_: Request, exc: Exception) -> Exception:
+async def http_exception_handler(_: Request, exc: HTTPException) -> JSONResponse:
     """
     HTTP exceptions appear as warnings in logging
 
@@ -355,7 +358,7 @@ async def http_exception_handler(_: Request, exc: Exception) -> Exception:
     )
 
 @app.exception_handler(Exception)
-async def general_exception_handler(_: Request, exc: Exception) -> None:
+async def general_exception_handler(_: Request, exc: Exception) -> JSONResponse:
     """
     General exception handler for unexpected errors, 
     that are not in HTTP, but are raised as such
