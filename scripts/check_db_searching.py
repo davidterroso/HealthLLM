@@ -2,10 +2,10 @@
 Script called to process the test the search in the vector 
 database with proper metadata access
 """
-
 from requests import RequestException
 from langchain.schema import Document
 from answer_questions.db_searching import search_docs
+from answer_questions.generate_answers import answer_with_docs
 from utils.load_config import load_config
 
 config = load_config()
@@ -39,12 +39,12 @@ def print_document_details(doc: Document, index: int) -> None:
 
 if __name__ == "__main__":
     # Examples of queries to ask that must retrieve the same document
-    # QUERY = "What process produces egg cells in sexual organisms?"
+    QUERY = "What process produces egg cells in sexual organisms?"
     # QUERY = "How does meiosis change the number of chromosomes in a cell?"
     # QUERY = "What are the key steps involved in meiosis?"
     # QUERY = "How many haploid nuclei result from one diploid nucleus?"
     # QUERY = "What is the difference between diploid and haploid nuclei in meiosis?"
-    QUERY = "In all sex animals & plants, egg cell prod involves meosis, the cmplx" \
+    # QUERY = "In all sex animals & plants, egg cell prod involves meosis, the cmplx" \
     "cell process (DNA repl, recomb, 2 nuc div) whereby 1 diploid nuc (2 copies per" \
     "chrom) becomes 4 genetically diff haploid nucs"
 
@@ -58,8 +58,9 @@ if __name__ == "__main__":
 
     print("\n\nResults:")
     try:
-        direct_docs = search_docs(query=QUERY, k=3)
-        for i, document in enumerate(direct_docs):
-            print_document_details(document, index=i)
+        docs = search_docs(query=QUERY, k=3)
+        answer = answer_with_docs(docs=docs, query=QUERY)
+        print(answer)
+
     except search_exceptions as e:
         print(f"Direct search failed: {e}")
