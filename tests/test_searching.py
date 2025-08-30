@@ -13,7 +13,6 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 # pylint: disable=wrong-import-position
 from answer_questions.db_searching import (
     create_embedding_function,
-    get_qdrant_store,
     search_docs
 )
 
@@ -62,51 +61,6 @@ def test_create_embedding_function_missing_key(monkeypatch: MonkeyPatch) -> None
     monkeypatch.setattr("answer_questions.db_searching.config", {}, raising=False)
     with raises(KeyError):
         create_embedding_function()
-
-# Tests the get_qdrant_store function
-
-@patch("answer_questions.db_searching.QdrantClient")
-@patch("answer_questions.db_searching.QdrantVectorStore")
-def test_get_qdrant_store_success(mock_store: MagicMock, mock_client: MagicMock) -> None:
-    """
-    Tests the function that initiates the Qdrant store in 
-    a success scenario
-
-    Args:
-        mock_store (MagicMock): mock of the Qdrant
-            vector store
-        mock_client (MagicMock): mock of the Qdrant 
-            client
-
-    Returns:
-        None
-    """
-    fake_embedding = MagicMock()
-    store_instance = MagicMock()
-    mock_store.return_value = store_instance
-
-    result = get_qdrant_store(fake_embedding, "test-collection")
-
-    assert result == store_instance
-    mock_client.assert_called_once()
-    mock_store.assert_called_once()
-
-
-@patch("answer_questions.db_searching.QdrantClient", side_effect=Exception("boom"))
-def test_get_qdrant_store_unexpected_error(mock_client: MagicMock) -> None: # pylint: disable=unused-argument
-    """
-    Tests the Qdrant vector store initializer when it 
-    gets an unexpected error
-
-    Args:
-        mock_client (MagicMock): mock of the Qdrant 
-            client
-
-    Returns:
-        None
-    """
-    with raises(RuntimeError):
-        get_qdrant_store(MagicMock(), "test-collection")
 
 # Tests the search_docs function
 

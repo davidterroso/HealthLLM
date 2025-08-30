@@ -8,8 +8,7 @@ from typing import List
 from dotenv import load_dotenv
 from langchain.schema import Document
 from langchain_core.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
-from langchain_huggingface.llms import HuggingFacePipeline
+from langchain_huggingface.llms import HuggingFacePipeline, HuggingFaceEndpoint
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 from utils.load_config import load_config
 
@@ -57,8 +56,12 @@ def answer_with_docs(docs: List[Document], query: str) -> str:
     """
     prompt = load_prompt(prompt_name="qa_styling")
     docs_content = "\n\n".join(doc.page_content for doc in docs)
+
     if config["local_or_api_llm"] == "api":
-        llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.2, max_tokens=512)
+        llm = HuggingFaceEndpoint(repo_id="meta-llama/Llama-2-7b-chat-hf",
+                                  task='text-generation',
+                                  timeout = 300
+                                )
 
     elif config["local_or_api_llm"] == "local":
         model_id = config["mistral_llm"]

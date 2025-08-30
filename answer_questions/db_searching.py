@@ -8,7 +8,6 @@ from typing import List, Tuple
 from dotenv import load_dotenv
 from spellchecker import SpellChecker
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_qdrant import QdrantVectorStore
 from langchain_core.documents import Document
 from qdrant_client import QdrantClient
 from qdrant_client.http.exceptions import UnexpectedResponse, ResponseHandlingException
@@ -26,8 +25,7 @@ def create_embedding_function() -> Tuple[HuggingFaceEmbeddings, str]:
         None
 
     Returns:
-        embedding_function (Union[HuggingFaceEmbeddings, OpenAIEmbeddings]): function used 
-            in the embedding
+        embedding_function (HuggingFaceEmbeddings): function used in the embedding
         collection_name (str): name of the collection where the embeddings are stored
     """
     try:
@@ -41,40 +39,6 @@ def create_embedding_function() -> Tuple[HuggingFaceEmbeddings, str]:
     except OSError as e:
         raise OSError(f"Error loading embedding model \
                       '{config.get('hf_embedding_model')}': {e}") from e
-
-def get_qdrant_store(embedding_function: HuggingFaceEmbeddings,
-                     collection_name: str) -> QdrantVectorStore:
-    """
-    Initiates the Qdrant store and using the secret keys 
-
-    Args:
-        embedding_function (HuggingFaceEmbeddings): initiated
-            HuggingFaceEmbeddings function
-        collection_name (str): name of the Qdrant collection 
-            to search
-
-    Returns:
-        (Qdrant): initiated Qdrant LangChain vector store
-    """
-    try:
-        client = QdrantClient(
-            url=os.getenv("QDRANT_HOST"),
-            api_key=os.getenv("QDRANT_API_KEY"),
-            timeout=60
-        )
-        return QdrantVectorStore(
-            client=client,
-            collection_name=collection_name,
-            embedding=embedding_function,
-            content_payload_key="text"
-        )
-    except (UnexpectedResponse, ResponseHandlingException) as e:
-        raise RuntimeError(f"Qdrant API error: {e}") from e
-    except RequestException as e:
-        raise ConnectionError(f"Network error while connecting to Qdrant: {e}") from e
-    except Exception as e:
-        raise RuntimeError(f"Unexpected error creating Qdrant store:\
-                           {type(e).__name__}: {e}") from e
 
 def correct_query(query: str) -> str:
     """
@@ -96,7 +60,7 @@ def correct_query(query: str) -> str:
         else:
             corrected_words.append(corrected)
 
-    corrected_query = " ".join(corrected_words)
+    corrected_query = " ".join(corrected_words) + "?"
     return corrected_query
 
 def search_docs(query: str, k: int = 5) -> List[Document]:
@@ -120,7 +84,8 @@ def search_docs(query: str, k: int = 5) -> List[Document]:
 
         client = QdrantClient(
             url=os.getenv("QDRANT_HOST"),
-            api_key=os.getenv("QDRANT_API_KEY")
+            api_key=os.getenv("QDRANT_API_KEY"),
+            timeout=300
         )
 
         search_result = client.search(
