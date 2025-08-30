@@ -45,8 +45,8 @@ if __name__ == "__main__":
     # QUERY = "How many haploid nuclei result from one diploid nucleus?"
     # QUERY = "What is the difference between diploid and haploid nuclei in meiosis?"
     # QUERY = "In all sex animals & plants, egg cell prod involves meosis, the cmplx" \
-    "cell process (DNA repl, recomb, 2 nuc div) whereby 1 diploid nuc (2 copies per" \
-    "chrom) becomes 4 genetically diff haploid nucs"
+    # "cell process (DNA repl, recomb, 2 nuc div) whereby 1 diploid nuc (2 copies per" \
+    # "chrom) becomes 4 genetically diff haploid nucs"
 
     print("=" * 80)
     print("TESTING RAG PIPELINE WITH METADATA ACCESS")
@@ -59,7 +59,8 @@ if __name__ == "__main__":
     try:
         print("\n\nDocuments:")
         print("=" * 80)
-        docs = search_docs(query=QUERY, k=3)
+        docs = search_docs(query=QUERY, k=10)
+        print("\n\n".join(doc.page_content for doc in docs))
         print("=" * 80)
         print("\n\nAnswer:")
         answer = answer_with_docs(docs=docs, query=QUERY)
