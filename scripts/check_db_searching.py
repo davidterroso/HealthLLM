@@ -56,9 +56,12 @@ if __name__ == "__main__":
 
     search_exceptions = (ValueError, RuntimeError, ConnectionError, RequestException, KeyError)
 
-    print("\n\nResults:")
     try:
+        print("\n\nDocuments:")
+        print("=" * 80)
         docs = search_docs(query=QUERY, k=3)
+        print("=" * 80)
+        print("\n\nAnswer:")
         answer = answer_with_docs(docs=docs, query=QUERY)
         print(answer)
 

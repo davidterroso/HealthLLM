@@ -83,16 +83,16 @@ def search_docs(query: str, k: int = 5) -> List[Document]:
         query_embedding = embedding_function.embed_query(query)
 
         client = QdrantClient(
-            url=os.getenv("QDRANT_HOST"),
-            api_key=os.getenv("QDRANT_API_KEY"),
-            timeout=300
+            url = os.getenv("QDRANT_HOST"),
+            api_key = os.getenv("QDRANT_API_KEY"),
+            timeout = 300
         )
 
         search_result = client.search(
-            collection_name=collection_name,
-            query_vector=query_embedding,
-            limit=k,
-            with_payload=True
+            collection_name = collection_name,
+            query_vector = query_embedding,
+            limit = k,
+            with_payload = True
         )
 
         documents = []
