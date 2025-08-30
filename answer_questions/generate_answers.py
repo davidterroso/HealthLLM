@@ -7,6 +7,7 @@ import json
 from typing import List
 from dotenv import load_dotenv
 from langchain.schema import Document
+from langchain_core.language_models import BaseLLM
 from langchain_core.prompts import PromptTemplate
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_huggingface import ChatHuggingFace
@@ -55,13 +56,14 @@ def answer_with_docs(docs: List[Document], query: str) -> str:
         answer (str): answer to the received query
     """
     docs_content = "\n\n".join(doc.page_content for doc in docs)
+    llm: BaseLLM
 
     if config["local_or_api_llm"] == "api":
         prompt_template = load_prompt(prompt_name="qa_styling")
 
         prompt = prompt_template.format(context=docs_content)
 
-        llm = HuggingFaceEndpoint(repo_id="deepseek-ai/DeepSeek-R1",
+        llm = HuggingFaceEndpoint(model="deepseek-ai/DeepSeek-R1",
                                   task="text-generation",
                                   max_new_tokens=512,
                                   provider="auto",
@@ -76,7 +78,10 @@ def answer_with_docs(docs: List[Document], query: str) -> str:
             ),
         ]
 
-        answer = model.invoke(messages).content
+        answer_msg = model.invoke(messages)
+        answer = answer_msg.content \
+            if isinstance(answer_msg.content, str)\
+            else str(answer_msg.content)
 
     elif config["local_or_api_llm"] == "local":
         prompt_template = (
