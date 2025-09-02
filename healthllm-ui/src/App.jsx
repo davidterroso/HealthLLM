@@ -102,14 +102,15 @@ function App() {
         </div>
 
         {/* Messages Container */}
-        <div
-          className={`flex-1 p-4 space-y-4 relative transition-all duration-500 ease-in-out
-            ${darkMode 
-              ? "bg-gradient-to-br from-slate-900/20 via-slate-800/20 to-slate-900/20" 
-              : "bg-gradient-to-br from-blue-50/30 via-white/30 to-indigo-50/30"
-            }`}
-          style={{ overflowY: showWelcome ? "hidden" : "auto" }}
-        >
+          <div
+            className={`flex-1 p-4 space-y-4 relative transition-all duration-500 ease-in-out
+              scrollbar-thin scrollbar-thumb-rounded-xl 
+              ${darkMode 
+                ? "bg-gradient-to-br from-slate-900/20 via-slate-800/20 to-slate-900/20 scrollbar-thumb-slate-700 scrollbar-track-slate-800/40" 
+                : "bg-gradient-to-br from-blue-50/30 via-white/30 to-indigo-50/30 scrollbar-thumb-blue-400 scrollbar-track-blue-100"
+              }`}
+            style={{ overflowY: showWelcome ? "hidden" : "auto" }}
+          >
           {/* Welcome Screen with smooth exit animation */}
           {showWelcome && (
             <div className={`absolute inset-0 flex items-center justify-center welcome-screen transition-all duration-700 ease-out ${
