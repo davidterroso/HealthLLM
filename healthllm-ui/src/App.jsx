@@ -10,6 +10,12 @@ function App() {
   const [showWelcome, setShowWelcome] = useState(true);
   const messagesEndRef = useRef(null);
 
+  // Message limit configuration
+  const MESSAGE_LIMIT = 10;
+  const userMessageCount = messages.filter(msg => msg.role === "user").length;
+  const remainingMessages = MESSAGE_LIMIT - userMessageCount;
+  const isAtLimit = userMessageCount >= MESSAGE_LIMIT;
+
   useEffect(() => {
     setDarkMode(true);
   }, []);
@@ -20,7 +26,7 @@ function App() {
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || isAtLimit) return;
 
     // Trigger transition animation if first message
     if (messages.length === 0) {
@@ -67,6 +73,14 @@ function App() {
     }
   };
 
+  const startNewChat = () => {
+    setMessages([]);
+    setInput("");
+    setShowWelcome(true);
+    setIsTransitioning(false);
+    setIsLoading(false);
+  };
+
   return (
     <div className="flex flex-col h-screen relative overflow-hidden">
       {/* Background layers for smooth transitions */}
@@ -89,16 +103,63 @@ function App() {
               Your medical advisor
             </p>
           </div>
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className={`px-4 py-2 rounded-xl font-medium transition-all duration-500 ease-in-out hover:scale-105 active:scale-95 ${
-              darkMode
-                ? "bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 hover:from-yellow-300 hover:to-orange-300"
-                : "bg-gradient-to-r from-slate-700 to-slate-900 text-white hover:from-slate-600 hover:to-slate-800"
-            }`}
-          >
-            {darkMode ? "☀️ Light" : "🌙 Dark"}
-          </button>
+          
+          {/* Message Counter & Controls */}
+          <div className="flex items-center space-x-4">
+            {/* Message Counter */}
+            {userMessageCount > 0 && (
+              <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-500 ${
+                remainingMessages <= 2 
+                  ? darkMode ? "bg-red-900/30 border border-red-700" : "bg-red-50 border border-red-200"
+                  : remainingMessages <= 5
+                  ? darkMode ? "bg-yellow-900/30 border border-yellow-700" : "bg-yellow-50 border border-yellow-200"
+                  : darkMode ? "bg-slate-700/50 border border-slate-600" : "bg-gray-50 border border-gray-200"
+              }`}>
+                <div className={`w-2 h-2 rounded-full ${
+                  remainingMessages <= 2 
+                    ? "bg-red-500" 
+                    : remainingMessages <= 5 
+                    ? "bg-yellow-500" 
+                    : "bg-green-500"
+                }`}></div>
+                <span className={`text-sm font-medium ${
+                  remainingMessages <= 2 
+                    ? darkMode ? "text-red-400" : "text-red-600"
+                    : remainingMessages <= 5
+                    ? darkMode ? "text-yellow-400" : "text-yellow-600"
+                    : darkMode ? "text-slate-400" : "text-gray-600"
+                }`}>
+                  {remainingMessages} left
+                </span>
+              </div>
+            )}
+            
+            {/* New Chat Button */}
+            {messages.length > 0 && (
+              <button
+                onClick={startNewChat}
+                className={`px-4 py-2 rounded-lg font-medium transition-all duration-500 ease-in-out hover:scale-105 active:scale-95 ${
+                  darkMode
+                    ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-500 hover:to-blue-600"
+                    : "bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-400 hover:to-blue-500"
+                }`}
+              >
+                New Chat
+              </button>
+            )}
+            
+            {/* Theme Toggle */}
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className={`px-4 py-2 rounded-xl font-medium transition-all duration-500 ease-in-out hover:scale-105 active:scale-95 ${
+                darkMode
+                  ? "bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 hover:from-yellow-300 hover:to-orange-300"
+                  : "bg-gradient-to-r from-slate-700 to-slate-900 text-white hover:from-slate-600 hover:to-slate-800"
+              }`}
+            >
+              {darkMode ? "☀️ Light" : "🌙 Dark"}
+            </button>
+          </div>
         </div>
 
         {/* Messages Container */}
@@ -124,7 +185,39 @@ function App() {
                 <Typewriter text="HealthLLM" />
                 <h3 className="text-xl font-semibold mt-4 mb-2">Start a conversation</h3>
                 <p>Ask me anything about health and wellness</p>
+                <p className={`text-sm mt-2 ${darkMode ? "text-slate-500" : "text-gray-400"}`}>
+                  You have {MESSAGE_LIMIT} questions per conversation
+                </p>
               </div>
+            </div>
+          )}
+
+          {/* Limit Reached Warning */}
+          {isAtLimit && (
+            <div className={`mx-4 p-4 rounded-lg border transition-all duration-500 ${
+              darkMode 
+                ? "bg-red-900/30 border-red-700 text-red-400" 
+                : "bg-red-50 border-red-200 text-red-600"
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span className="font-medium">Question limit reached</span>
+                </div>
+                <button
+                  onClick={startNewChat}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                    darkMode
+                      ? "bg-red-700 hover:bg-red-600 text-white"
+                      : "bg-red-500 hover:bg-red-600 text-white"
+                  }`}
+                >
+                  Start New Chat
+                </button>
+              </div>
+              <p className="text-sm mt-2">
+                To continue asking questions, please start a new conversation.
+              </p>
             </div>
           )}
 
@@ -211,26 +304,49 @@ function App() {
                     HealthLLM
                   </span>
                 </div>
-                <div className={`px-4 py-3 rounded-2xl rounded-bl-md transition-all duration-500 ease-in-out ${
-                  darkMode ? "bg-slate-700/80 border border-slate-600" : "bg-white border border-gray-200"
-                }`}>
-                  <div className="flex space-x-1 transition-all duration-500 ease-in-out">
-                    <div className={`w-2 h-2 rounded-full animate-pulse ${
-                      darkMode ? "bg-slate-400" : "bg-gray-400"
-                    }`}></div>
-                    <div className={`w-2 h-2 rounded-full animate-pulse delay-75 ${
-                      darkMode ? "bg-slate-400" : "bg-gray-400"
-                    }`}></div>
-                    <div className={`w-2 h-2 rounded-full animate-pulse delay-150 ${
-                      darkMode ? "bg-slate-400" : "bg-gray-400"
-                    }`}></div>
-                  </div>
+              <div className={`px-4 py-3 rounded-2xl rounded-bl-md transition-all duration-500 ease-in-out 
+                ${darkMode ? "bg-slate-700/80 border border-slate-600" : "bg-white border border-gray-200"}`}
+              >
+                <div className="min-h-[24px] flex items-center space-x-1">
+                  <div className={`w-2 h-2 rounded-full animate-pulse ${darkMode ? "bg-slate-400" : "bg-gray-400"}`}></div>
+                  <div className={`w-2 h-2 rounded-full animate-pulse delay-75 ${darkMode ? "bg-slate-400" : "bg-gray-400"}`}></div>
+                  <div className={`w-2 h-2 rounded-full animate-pulse delay-150 ${darkMode ? "bg-slate-400" : "bg-gray-400"}`}></div>
                 </div>
+              </div>
               </div>
             </div>
           )}
 
           <div ref={messagesEndRef} />
+        
+          {/* Limit Reached Warning - Positioned at bottom */}
+          {isAtLimit && (
+            <div className={`mx-4 mb-4 p-4 rounded-lg border transition-all duration-500 ${
+              darkMode 
+                ? "bg-red-900/30 border-red-700 text-red-400" 
+                : "bg-red-50 border-red-200 text-red-600"
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span className="font-medium">Question limit reached</span>
+                </div>
+                <button
+                  onClick={startNewChat}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                    darkMode
+                      ? "bg-red-700 hover:bg-red-600 text-white"
+                      : "bg-red-500 hover:bg-red-600 text-white"
+                  }`}
+                >
+                  Start New Chat
+                </button>
+              </div>
+              <p className="text-sm mt-2">
+                To continue asking questions, please start a new conversation.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Input form */}
@@ -248,15 +364,15 @@ function App() {
                   darkMode
                     ? "bg-slate-700 border-slate-600 text-white placeholder-slate-400 focus:ring-blue-500 focus:border-transparent"
                     : "bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-transparent"
-                }`}
-                placeholder="Ask about symptoms, conditions, treatments..."
+                } ${isAtLimit ? "opacity-50" : ""}`}
+                placeholder={isAtLimit ? "Start a new chat to ask more questions..." : "Ask about symptoms, conditions, treatments..."}
                 onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage(e)}
-                disabled={isLoading}
+                disabled={isLoading || isAtLimit}
               />
             </div>
           <button
             onClick={sendMessage}
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || isAtLimit}
             className={`inline-flex items-center justify-center
                         w-28 shrink-0 flex-none text-center
                         px-6 py-3 rounded-xl font-medium
@@ -268,7 +384,7 @@ function App() {
                             : "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500"
                         }`}
           >
-            {isLoading ? "..." : "Send"}
+            {isLoading ? "..." : isAtLimit ? "Limit" : "Send"}
           </button>
           </div>
         </div>
