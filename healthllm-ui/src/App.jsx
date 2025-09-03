@@ -22,7 +22,7 @@ function App() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -74,11 +74,14 @@ function App() {
   };
 
   const startNewChat = () => {
-    setMessages([]);
-    setInput("");
-    setShowWelcome(true);
-    setIsTransitioning(false);
     setIsLoading(false);
+    setInput("");
+    setMessages([]);
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setShowWelcome(true);
+      setIsTransitioning(false);
+    }, 300);
   };
 
   return (
@@ -221,40 +224,34 @@ function App() {
             </div>
           )}
 
-          {/* Chat Messages with smooth entrance animation */}
-          <div className={`transition-all duration-700 ease-out ${
-            messages.length > 0 
-              ? 'opacity-100 transform translate-y-0' 
-              : 'opacity-0 transform translate-y-4'
-          }`}>
+          {/* Chat Messages + Loading in the same flow */}
+          <div
+            className={`flex flex-col space-y-4 transition-all duration-700 ease-out ${
+              messages.length > 0 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            }`}
+          >
             {messages.map((msg, i) => (
               <div
                 key={i}
                 className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} ${
                   i === 0 ? 'animate-fade-in-up' : ''
                 }`}
-                style={{
-                  animationDelay: i === 0 ? '300ms' : '0ms'
-                }}
+                style={{ animationDelay: i === 0 ? '300ms' : '0ms' }}
               >
-                <div className={`flex items-start space-x-3 max-w-[85%] md:max-w-[70%]`}>
+                <div className="flex items-start space-x-3 max-w-[85%] md:max-w-[70%]">
                   {msg.role === "assistant" && (
                     <div className="flex flex-col items-center space-y-1">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-500 ease-in-out ${
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
                         darkMode ? "bg-emerald-600 text-white" : "bg-emerald-500 text-white"
-                      }`}>
-                        🏥
-                      </div>
-                      <span className={`text-xs font-medium transition-all duration-500 ease-in-out ${
-                        darkMode ? "text-slate-400" : "text-gray-500"
-                      }`}>
+                      }`}>🏥</div>
+                      <span className={`text-xs font-medium ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
                         HealthLLM
                       </span>
                     </div>
                   )}
-                  
+
                   <div
-                    className={`px-4 py-3 rounded-2xl shadow-sm break-words transition-all duration-500 ease-in-out ${
+                    className={`px-4 py-3 rounded-2xl shadow-sm break-words ${
                       msg.role === "user"
                         ? darkMode
                           ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-br-md"
@@ -264,58 +261,50 @@ function App() {
                           : "bg-white text-gray-800 rounded-bl-md border border-gray-200"
                     }`}
                   >
-                    <div className="whitespace-pre-wrap leading-relaxed transition-all duration-500 ease-in-out">
-                      {msg.content}
-                    </div>
+                    <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
                   </div>
 
                   {msg.role === "user" && (
                     <div className="flex flex-col items-center space-y-1">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-500 ease-in-out ${
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
                         darkMode ? "bg-blue-600 text-white" : "bg-blue-500 text-white"
-                      }`}>
-                        👤
-                      </div>
-                      <span className={`text-xs font-medium transition-all duration-500 ease-in-out ${
-                        darkMode ? "text-slate-400" : "text-gray-500"
-                      }`}>
-                        You
-                      </span>
+                      }`}>👤</div>
+                      <span className={`text-xs font-medium ${darkMode ? "text-slate-400" : "text-gray-500"}`}>You</span>
                     </div>
                   )}
                 </div>
               </div>
             ))}
-          </div>
 
-          {/* Loading indicator */}
-          {isLoading && (
-            <div className="flex justify-start animate-fade-in">
-              <div className="flex items-start space-x-3 max-w-[85%] md:max-w-[70%]">
-                <div className="flex flex-col items-center space-y-1">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-500 ease-in-out ${
-                    darkMode ? "bg-emerald-600 text-white" : "bg-emerald-500 text-white"
-                  }`}>
-                    🏥
+            {/* Loading indicator — now part of the same flow */}
+            {isLoading && (
+              <div className="flex justify-start animate-fade-in">
+                <div className="flex items-start space-x-3 max-w-[85%] md:max-w-[70%]">
+                  <div className="flex flex-col items-center space-y-1">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                      darkMode ? "bg-emerald-600 text-white" : "bg-emerald-500 text-white"
+                    }`}>🏥</div>
+                    <span className={`text-xs font-medium ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+                      HealthLLM
+                    </span>
                   </div>
-                  <span className={`text-xs font-medium transition-all duration-500 ease-in-out ${
-                    darkMode ? "text-slate-400" : "text-gray-500"
-                  }`}>
-                    HealthLLM
-                  </span>
-                </div>
-              <div className={`px-4 py-3 rounded-2xl rounded-bl-md transition-all duration-500 ease-in-out 
-                ${darkMode ? "bg-slate-700/80 border border-slate-600" : "bg-white border border-gray-200"}`}
-              >
-                <div className="min-h-[24px] flex items-center space-x-1">
-                  <div className={`w-2 h-2 rounded-full animate-pulse ${darkMode ? "bg-slate-400" : "bg-gray-400"}`}></div>
-                  <div className={`w-2 h-2 rounded-full animate-pulse delay-75 ${darkMode ? "bg-slate-400" : "bg-gray-400"}`}></div>
-                  <div className={`w-2 h-2 rounded-full animate-pulse delay-150 ${darkMode ? "bg-slate-400" : "bg-gray-400"}`}></div>
+
+                  <div
+                    className={`px-4 py-3 rounded-2xl rounded-bl-md ${
+                      darkMode ? "bg-slate-700/80 border border-slate-600" : "bg-white border border-gray-200"
+                    }`}
+                  >
+                    {/* Make loading bubble match message height */}
+                    <div className="min-h-[26px] flex items-center space-x-1">
+                      <div className={`w-2 h-2 rounded-full animate-pulse ${darkMode ? "text-slate-400 bg-slate-400" : "text-gray-400 bg-gray-400"}`}></div>
+                      <div className={`w-2 h-2 rounded-full animate-pulse delay-75 ${darkMode ? "bg-slate-400" : "bg-gray-400"}`}></div>
+                      <div className={`w-2 h-2 rounded-full animate-pulse delay-150 ${darkMode ? "bg-slate-400" : "bg-gray-400"}`}></div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
 
           <div ref={messagesEndRef} />
         
