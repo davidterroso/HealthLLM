@@ -8,6 +8,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [isClearingChat, setIsClearingChat] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Message limit configuration
@@ -74,13 +75,21 @@ function App() {
   };
 
   const startNewChat = () => {
+    setIsClearingChat(true);
     setIsLoading(false);
     setInput("");
-    setMessages([]);
-    setIsTransitioning(true);
+    
+    // Animate messages out
     setTimeout(() => {
-      setShowWelcome(true);
-      setIsTransitioning(false);
+      setMessages([]);
+      setIsTransitioning(true);
+      
+      // Show welcome screen with animation
+      setTimeout(() => {
+        setShowWelcome(true);
+        setIsClearingChat(false);
+        setIsTransitioning(false);
+      }, 300);
     }, 300);
   };
 
@@ -110,7 +119,7 @@ function App() {
           {/* Message Counter & Controls */}
           <div className="flex items-center space-x-4">
             {/* Message Counter */}
-            {userMessageCount > 0 && (
+            {userMessageCount > 0 && !isClearingChat && (
               <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-500 ${
                 remainingMessages <= 2 
                   ? darkMode ? "bg-red-900/30 border border-red-700" : "bg-red-50 border border-red-200"
@@ -138,7 +147,7 @@ function App() {
             )}
             
             {/* New Chat Button */}
-            {messages.length > 0 && (
+            {messages.length > 0 && !isClearingChat && (
               <button
                 onClick={startNewChat}
                 className={`px-4 py-2 rounded-lg font-medium transition-all duration-500 ease-in-out hover:scale-105 active:scale-95 ${
@@ -175,7 +184,7 @@ function App() {
               }`}
             style={{ overflowY: showWelcome ? "hidden" : "auto" }}
           >
-          {/* Welcome Screen with smooth exit animation */}
+          {/* Welcome Screen with smooth exit/enter animation */}
           {showWelcome && (
             <div className={`absolute inset-0 flex items-center justify-center welcome-screen transition-all duration-700 ease-out ${
               isTransitioning 
@@ -196,7 +205,7 @@ function App() {
           )}
 
           {/* Limit Reached Warning */}
-          {isAtLimit && (
+          {isAtLimit && !showWelcome && !isClearingChat && (
             <div className={`mx-4 p-4 rounded-lg border transition-all duration-500 ${
               darkMode 
                 ? "bg-red-900/30 border-red-700 text-red-400" 
@@ -227,16 +236,20 @@ function App() {
           {/* Chat Messages + Loading in the same flow */}
           <div
             className={`flex flex-col space-y-4 transition-all duration-700 ease-out ${
-              messages.length > 0 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+              messages.length > 0 && !isClearingChat
+                ? 'opacity-100 translate-y-0' 
+                : isClearingChat
+                ? 'opacity-0 transform scale-95 translate-y-8'
+                : 'opacity-0 translate-y-4'
             }`}
           >
             {messages.map((msg, i) => (
               <div
                 key={i}
                 className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} ${
-                  i === 0 ? 'animate-fade-in-up' : ''
+                  i === 0 && !isClearingChat ? 'animate-fade-in-up' : ''
                 }`}
-                style={{ animationDelay: i === 0 ? '300ms' : '0ms' }}
+                style={{ animationDelay: i === 0 && !isClearingChat ? '300ms' : '0ms' }}
               >
                 <div className="flex items-start space-x-3 max-w-[85%] md:max-w-[70%]">
                   {msg.role === "assistant" && (
@@ -277,7 +290,7 @@ function App() {
             ))}
 
             {/* Loading indicator — now part of the same flow */}
-            {isLoading && (
+            {isLoading && !isClearingChat && (
               <div className="flex justify-start animate-fade-in">
                 <div className="flex items-start space-x-3 max-w-[85%] md:max-w-[70%]">
                   <div className="flex flex-col items-center space-y-1">
@@ -309,7 +322,7 @@ function App() {
           <div ref={messagesEndRef} />
         
           {/* Limit Reached Warning - Positioned at bottom */}
-          {isAtLimit && (
+          {isAtLimit && !showWelcome && !isClearingChat && (
             <div className={`mx-4 mb-4 p-4 rounded-lg border transition-all duration-500 ${
               darkMode 
                 ? "bg-red-900/30 border-red-700 text-red-400" 
@@ -356,12 +369,12 @@ function App() {
                 } ${isAtLimit ? "opacity-50" : ""}`}
                 placeholder={isAtLimit ? "Start a new chat to ask more questions..." : "Ask about symptoms, conditions, treatments..."}
                 onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage(e)}
-                disabled={isLoading || isAtLimit}
+                disabled={isLoading || isAtLimit || isClearingChat}
               />
             </div>
           <button
             onClick={sendMessage}
-            disabled={!input.trim() || isLoading || isAtLimit}
+            disabled={!input.trim() || isLoading || isAtLimit || isClearingChat}
             className={`inline-flex items-center justify-center
                         w-28 shrink-0 flex-none text-center
                         px-6 py-3 rounded-xl font-medium
