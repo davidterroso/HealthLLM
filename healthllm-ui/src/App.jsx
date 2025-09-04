@@ -9,6 +9,7 @@ function App() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
   const [isClearingChat, setIsClearingChat] = useState(false);
+  const [isResumingChat, setIsResumingChat] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Message limit configuration
@@ -93,6 +94,58 @@ function App() {
     }, 300);
   };
 
+  const resumeConversation = async () => {
+    setIsResumingChat(true);
+    setIsLoading(false);
+    setInput("");
+    
+    // Animate messages out
+    setTimeout(async () => {
+      try {
+        // Prepare conversation history for summarization
+        const conversationHistory = messages.map(msg => 
+          `${msg.role === "user" ? "User" : "HealthLLM"}: ${msg.content}`
+        ).join("\n");
+        
+        const resumePrompt = `Please provide a brief summary of our previous conversation and any relevant medical context that should be carried forward to continue helping the user effectively:\n\n${conversationHistory}\n\nSummary and relevant context:`;
+        
+        // Call FastAPI backend to get conversation summary
+        const res = await fetch("http://localhost:8000/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: resumePrompt }),
+        });
+        const data = await res.json();
+        
+        // Clear old messages and add summary as first message
+        setMessages([{ 
+          role: "assistant", 
+          content: `**Conversation Summary:**\n\n${data.answer}\n\n---\n\nI'm ready to continue helping you with your health questions. What would you like to discuss?`
+        }]);
+        
+        setIsTransitioning(true);
+        
+        // Show chat interface (no welcome screen)
+        setTimeout(() => {
+          setShowWelcome(false);
+          setIsResumingChat(false);
+          setIsTransitioning(false);
+        }, 300);
+        
+      } catch (error) {
+        // If summarization fails, fall back to regular new chat
+        setMessages([]);
+        setIsTransitioning(true);
+        
+        setTimeout(() => {
+          setShowWelcome(true);
+          setIsResumingChat(false);
+          setIsTransitioning(false);
+        }, 300);
+      }
+    }, 300);
+  };
+
   return (
     <div className="flex flex-col h-screen relative overflow-hidden">
       {/* Background layers for smooth transitions */}
@@ -119,7 +172,7 @@ function App() {
           {/* Message Counter & Controls */}
           <div className="flex items-center space-x-4">
             {/* Message Counter */}
-            {userMessageCount > 0 && !isClearingChat && (
+            {userMessageCount > 0 && !isClearingChat && !isResumingChat && (
               <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-500 ${
                 remainingMessages <= 2 
                   ? darkMode ? "bg-red-900/30 border border-red-700" : "bg-red-50 border border-red-200"
@@ -146,8 +199,8 @@ function App() {
               </div>
             )}
             
-            {/* New Chat Button */}
-            {messages.length > 0 && !isClearingChat && (
+            {/* New Chat Button - Only show if not at limit */}
+            {messages.length > 0 && !isAtLimit && !isClearingChat && !isResumingChat && (
               <button
                 onClick={startNewChat}
                 className={`px-4 py-2 rounded-lg font-medium transition-all duration-500 ease-in-out hover:scale-105 active:scale-95 ${
@@ -204,41 +257,14 @@ function App() {
             </div>
           )}
 
-          {/* Limit Reached Warning */}
-          {isAtLimit && !showWelcome && !isClearingChat && (
-            <div className={`mx-4 p-4 rounded-lg border transition-all duration-500 ${
-              darkMode 
-                ? "bg-red-900/30 border-red-700 text-red-400" 
-                : "bg-red-50 border-red-200 text-red-600"
-            }`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                  <span className="font-medium">Question limit reached</span>
-                </div>
-                <button
-                  onClick={startNewChat}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
-                    darkMode
-                      ? "bg-red-700 hover:bg-red-600 text-white"
-                      : "bg-red-500 hover:bg-red-600 text-white"
-                  }`}
-                >
-                  Start New Chat
-                </button>
-              </div>
-              <p className="text-sm mt-2">
-                To continue asking questions, please start a new conversation.
-              </p>
-            </div>
-          )}
+
 
           {/* Chat Messages + Loading in the same flow */}
           <div
             className={`flex flex-col space-y-4 transition-all duration-700 ease-out ${
-              messages.length > 0 && !isClearingChat
+              messages.length > 0 && !isClearingChat && !isResumingChat
                 ? 'opacity-100 translate-y-0' 
-                : isClearingChat
+                : (isClearingChat || isResumingChat)
                 ? 'opacity-0 transform scale-95 translate-y-8'
                 : 'opacity-0 translate-y-4'
             }`}
@@ -247,9 +273,9 @@ function App() {
               <div
                 key={i}
                 className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} ${
-                  i === 0 && !isClearingChat ? 'animate-fade-in-up' : ''
+                  i === 0 && !isClearingChat && !isResumingChat ? 'animate-fade-in-up' : ''
                 }`}
-                style={{ animationDelay: i === 0 && !isClearingChat ? '300ms' : '0ms' }}
+                style={{ animationDelay: i === 0 && !isClearingChat && !isResumingChat ? '300ms' : '0ms' }}
               >
                 <div className="flex items-start space-x-3 max-w-[85%] md:max-w-[70%]">
                   {msg.role === "assistant" && (
@@ -290,7 +316,7 @@ function App() {
             ))}
 
             {/* Loading indicator — now part of the same flow */}
-            {isLoading && !isClearingChat && (
+            {isLoading && !isClearingChat && !isResumingChat && (
               <div className="flex justify-start animate-fade-in">
                 <div className="flex items-start space-x-3 max-w-[85%] md:max-w-[70%]">
                   <div className="flex flex-col items-center space-y-1">
@@ -322,7 +348,7 @@ function App() {
           <div ref={messagesEndRef} />
         
           {/* Limit Reached Warning - Positioned at bottom */}
-          {isAtLimit && !showWelcome && !isClearingChat && (
+          {isAtLimit && !showWelcome && !isClearingChat && !isResumingChat && (
             <div className={`mx-4 mb-4 p-4 rounded-lg border transition-all duration-500 ${
               darkMode 
                 ? "bg-red-900/30 border-red-700 text-red-400" 
@@ -333,19 +359,31 @@ function App() {
                   <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                   <span className="font-medium">Question limit reached</span>
                 </div>
-                <button
-                  onClick={startNewChat}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
-                    darkMode
-                      ? "bg-red-700 hover:bg-red-600 text-white"
-                      : "bg-red-500 hover:bg-red-600 text-white"
-                  }`}
-                >
-                  Start New Chat
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={resumeConversation}
+                    className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                      darkMode
+                        ? "bg-blue-700 hover:bg-blue-600 text-white"
+                        : "bg-blue-500 hover:bg-blue-600 text-white"
+                    }`}
+                  >
+                    Resume Chat
+                  </button>
+                  <button
+                    onClick={startNewChat}
+                    className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                      darkMode
+                        ? "bg-red-700 hover:bg-red-600 text-white"
+                        : "bg-red-500 hover:bg-red-600 text-white"
+                    }`}
+                  >
+                    New Chat
+                  </button>
+                </div>
               </div>
               <p className="text-sm mt-2">
-                To continue asking questions, please start a new conversation.
+                <strong>Resume Chat:</strong> Continue with conversation summary • <strong>New Chat:</strong> Start completely fresh
               </p>
             </div>
           )}
@@ -369,12 +407,12 @@ function App() {
                 } ${isAtLimit ? "opacity-50" : ""}`}
                 placeholder={isAtLimit ? "Start a new chat to ask more questions..." : "Ask about symptoms, conditions, treatments..."}
                 onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage(e)}
-                disabled={isLoading || isAtLimit || isClearingChat}
+                disabled={isLoading || isAtLimit || isClearingChat || isResumingChat}
               />
             </div>
           <button
             onClick={sendMessage}
-            disabled={!input.trim() || isLoading || isAtLimit || isClearingChat}
+            disabled={!input.trim() || isLoading || isAtLimit || isClearingChat || isResumingChat}
             className={`inline-flex items-center justify-center
                         w-28 shrink-0 flex-none text-center
                         px-6 py-3 rounded-xl font-medium
